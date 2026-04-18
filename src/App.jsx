@@ -5,7 +5,8 @@ import { generateSchedule } from './lib/scheduler';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import { cn } from './lib/utils';
-import { Stethoscope } from 'lucide-react';
+import { Stethoscope, Globe } from 'lucide-react';
+import { useTranslation } from './lib/i18n';
 
 const INITIAL_STAFF = [
   { id: uuidv4(), name: 'Dr. Smith', level: 'R3', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [] },
@@ -17,9 +18,9 @@ const INITIAL_STAFF = [
 
 function App() {
   const [staffList, setStaffList] = useState(INITIAL_STAFF);
-  const [dailyRequirements, setDailyRequirements] = useState({ total: 2, minR: 0, minPGY: 0 });
+  const [dailyRequirements, setDailyRequirements] = useState({ total: 2, minR: 0, minSeniorR: 0, minPGY: 0 });
   const [searchQuery, setSearchQuery] = useState('');
-  const [currentMonthDate, setCurrentMonthDate] = useState(startOfMonth(new Date()));
+  const [currentMonthDate, setCurrentMonthDate] = useState(startOfMonth(addMonths(new Date(), 1)));
   const [manualOverrides, setManualOverrides] = useState({}); // { 'YYYY-MM-DD': ['staffId1', 'staffId2'] }
   const [dailyReqOverrides, setDailyReqOverrides] = useState({}); // { 'YYYY-MM-DD': { total, minR, minPGY } }
   
@@ -29,6 +30,7 @@ function App() {
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('calendar'); // 'calendar' | 'analytics'
+  const { t, lang, setLang } = useTranslation();
   
   // Explicitly generate schedule
   const handleGenerateSchedule = () => {
@@ -147,7 +149,7 @@ function App() {
                 onClick={() => setCurrentMonthDate(prev => subMonths(prev, 1))}
                 className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium transition-colors"
               >
-                Previous
+                {t('app.previous')}
               </button>
               <h2 className="text-xl font-black text-slate-800 min-w-[150px] text-center tracking-tight">
                 {format(currentMonthDate, 'MMMM yyyy')}
@@ -156,24 +158,34 @@ function App() {
                 onClick={() => setCurrentMonthDate(prev => addMonths(prev, 1))}
                 className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium transition-colors"
               >
-                Next
+                {t('app.next')}
               </button>
             </div>
             
-            <div className="bg-slate-100 p-1 rounded-xl flex items-center shadow-inner border border-slate-200 relative">
-              <div className="absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-transform duration-300 ease-out z-0 pointer-events-none" style={{ transform: activeTab === 'calendar' ? 'translateX(4px)' : 'translateX(100%)' }} />
-              <button 
-                onClick={() => setActiveTab('calendar')}
-                className={cn("relative z-10 px-6 py-1.5 text-sm font-bold rounded-lg transition-colors", activeTab === 'calendar' ? "text-indigo-700" : "text-slate-500 hover:text-slate-700")}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-xs font-bold"
               >
-                Calendar
+                <Globe className="w-3.5 h-3.5" />
+                {lang === 'en' ? '中文' : 'EN'}
               </button>
-              <button 
-                onClick={() => setActiveTab('analytics')}
-                className={cn("relative z-10 px-6 py-1.5 text-sm font-bold rounded-lg transition-colors ml-1", activeTab === 'analytics' ? "text-indigo-700" : "text-slate-500 hover:text-slate-700")}
-              >
-                Analytics
-              </button>
+
+              <div className="bg-slate-100 p-1 rounded-xl flex items-center shadow-inner border border-slate-200 relative">
+                <div className="absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-transform duration-300 ease-out z-0 pointer-events-none" style={{ transform: activeTab === 'calendar' ? 'translateX(4px)' : 'translateX(100%)' }} />
+                <button 
+                  onClick={() => setActiveTab('calendar')}
+                  className={cn("relative z-10 px-6 py-1.5 text-sm font-bold rounded-lg transition-colors flex items-center justify-center min-w-[110px]", activeTab === 'calendar' ? "text-indigo-700" : "text-slate-500 hover:text-slate-700")}
+                >
+                  {t('app.calendar')}
+                </button>
+                <button 
+                  onClick={() => setActiveTab('analytics')}
+                  className={cn("relative z-10 px-6 py-1.5 text-sm font-bold rounded-lg transition-colors ml-1 flex items-center justify-center min-w-[110px]", activeTab === 'analytics' ? "text-indigo-700" : "text-slate-500 hover:text-slate-700")}
+                >
+                  {t('app.analytics')}
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -212,6 +224,7 @@ function App() {
           staff={editingStaffId === 'new' 
             ? { name: '', level: 'PGY1', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [] } 
             : staffList.find(s => s.id === editingStaffId)}
+          currentMonthDate={currentMonthDate}
           onClose={() => setEditingStaffId(null)}
           onSave={handleStaffSave}
           isNew={editingStaffId === 'new'}

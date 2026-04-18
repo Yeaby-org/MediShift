@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Search, UserPlus, X, Calendar as CalendarIcon, Users, Edit2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
+import { useTranslation } from '../lib/i18n';
 
 export default function Sidebar({
   staffList,
@@ -19,6 +20,8 @@ export default function Sidebar({
   onGenerate,
   onClear
 }) {
+  const { t } = useTranslation();
+
   // Find shifts for searched staff
   const staffShifts = [];
   if (searchedStaff) {
@@ -40,7 +43,7 @@ export default function Sidebar({
           <input
             type="text"
             className="block w-full pl-10 pr-3 py-2.5 border border-slate-300 bg-slate-50 rounded-xl leading-5 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 hover:border-slate-400 transition-all sm:text-sm shadow-sm"
-            placeholder="Search staff in schedule..."
+            placeholder={t('sidebar.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -51,7 +54,7 @@ export default function Sidebar({
           <div className="mt-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm">
             <h3 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
               <CalendarIcon className="w-4 h-4 text-indigo-500" />
-              {searchedStaff.name}'s Shifts
+              {searchedStaff.name}{t('sidebar.shifts')}
             </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {staffShifts.length > 0 ? staffShifts.map(date => (
@@ -59,7 +62,7 @@ export default function Sidebar({
                   {format(new Date(date), 'd')} ({format(new Date(date), 'EEE')})
                 </span>
               )) : (
-                <span className="text-sm text-slate-500 italic">No shifts assigned.</span>
+                <span className="text-sm text-slate-500 italic">{t('sidebar.noShifts')}</span>
               )}
             </div>
           </div>
@@ -70,12 +73,12 @@ export default function Sidebar({
       <section className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4 shadow-sm">
         <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 flex items-center gap-2">
            <Users className="w-4 h-4 text-slate-400" />
-           Global Daily Requirements
+           {t('sidebar.globalReq')}
         </h3>
         
         <div className="space-y-4">
           <label className="flex items-center justify-between text-sm font-semibold text-slate-700">
-            <span title="Default number of people working per day for the month">Default Daily Staffing</span>
+            <span title="Default number of people working per day for the month">{t('sidebar.defaultTotal')}</span>
             <input 
               type="number" min="1" max="20"
               className="w-16 bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-center font-bold text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-sm transition-all"
@@ -90,14 +93,14 @@ export default function Sidebar({
           className="w-full mt-3 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-1.5"
         >
           <CalendarIcon className="w-4 h-4" />
-          Custom Day Rules Planner
+          {t('sidebar.rulePlannerBtn')}
         </button>
       </section>
 
       {/* Staff Management Section */}
       <section>
         <h3 className="text-xs font-black uppercase tracking-wider text-slate-500 mb-4 flex items-center justify-between">
-           <span>Staff Directory ({staffList.length})</span>
+           <span>{t('sidebar.directory')} ({staffList.length})</span>
         </h3>
         <ul className="space-y-3">
           {staffList.map(staff => (
@@ -114,9 +117,9 @@ export default function Sidebar({
                     )}>{staff.level}</span>
                   </div>
                   <div className="text-[11px] font-semibold text-slate-500 flex gap-2.5 items-center">
-                    <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">WD: {staff.maxWeekdays}</span>
-                    <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">WE: {staff.maxWeekends}</span>
-                    {staff.offDays.length > 0 && <span className="text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">{staff.offDays.length} Off</span>}
+                    <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{t('sidebar.wd')}: {staff.maxWeekdays}</span>
+                    <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{t('sidebar.we')}: {staff.maxWeekends}</span>
+                    {staff.offDays.length > 0 && <span className="text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">{staff.offDays.length} {t('sidebar.off')}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -145,7 +148,7 @@ export default function Sidebar({
           className="mt-4 w-full flex items-center justify-center gap-2 bg-white border border-dashed border-slate-300 rounded-xl py-3 text-sm font-bold text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-all shadow-sm"
         >
           <UserPlus className="w-4 h-4" />
-          Add New Staff
+          {t('sidebar.addStaffBtn')}
         </button>
       </section>
 
@@ -156,14 +159,14 @@ export default function Sidebar({
            className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/30 hover:shadow-indigo-600/40 flex items-center justify-center gap-2"
          >
            <CalendarIcon className="w-5 h-5" />
-           Generate Schedule
+           {t('sidebar.generateBtn')}
          </button>
          <button 
            onClick={onClear}
            className="w-full py-2.5 bg-white border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold rounded-xl transition-all flex items-center justify-center gap-2 text-sm shadow-sm"
          >
            <X className="w-4 h-4" />
-           Clear Schedule
+           {t('sidebar.clearBtn')}
          </button>
       </section>
     </div>

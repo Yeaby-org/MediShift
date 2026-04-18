@@ -2,8 +2,10 @@ import React, { useMemo } from 'react';
 import { differenceInDays, format, isWeekend, parseISO } from 'date-fns';
 import { Users, AlertTriangle, CalendarCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { useTranslation } from '../lib/i18n';
 
 export default function StaffAnalyticsView({ schedule, staffList, currentMonthDate, dailyReqOverrides }) {
+  const { t } = useTranslation();
   const analytics = useMemo(() => {
     // Initialize stats
     const stats = staffList.map(staff => ({
@@ -56,10 +58,10 @@ export default function StaffAnalyticsView({ schedule, staffList, currentMonthDa
         <div>
           <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
             <Users className="w-6 h-6 text-indigo-600" />
-            Staff Analytics & Fairness Report
+            {t('stat.title')}
           </h2>
           <p className="text-sm font-medium text-slate-500 mt-1">
-            Analyzing {analytics.length} staff members for the month of {format(currentMonthDate, 'MMMM yyyy')}.
+            {t('stat.desc')} {analytics.length} {t('stat.membersFor')} {format(currentMonthDate, 'MMMM yyyy')}.
           </p>
         </div>
       </div>
@@ -86,7 +88,7 @@ export default function StaffAnalyticsView({ schedule, staffList, currentMonthDa
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-black text-slate-800 leading-none">{totalShifts}</div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Total Shifts</div>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{t('stat.totalShifts')}</div>
                 </div>
               </div>
 
@@ -94,11 +96,11 @@ export default function StaffAnalyticsView({ schedule, staffList, currentMonthDa
               <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 shrink-0">
                  <div className="p-4 flex flex-col items-center justify-center bg-white">
                     <div className="text-xl font-bold text-slate-700">{staff.wdCount} <span className="text-sm font-medium text-slate-400">/ {staff.maxWeekdays}</span></div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Weekdays</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t('stat.weekdays')}</div>
                  </div>
                  <div className="p-4 flex flex-col items-center justify-center bg-white">
                     <div className="text-xl font-bold text-slate-700">{staff.weCount} <span className="text-sm font-medium text-slate-400">/ {staff.maxWeekends}</span></div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Weekends</div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t('stat.weekends')}</div>
                  </div>
               </div>
 
@@ -108,18 +110,18 @@ export default function StaffAnalyticsView({ schedule, staffList, currentMonthDa
                 hasQOD ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
               )}>
                 {hasQOD ? (
-                  <><AlertTriangle className="w-4 h-4" /> {staff.qodCount} QOD Incidents (Fatigue)</>
+                  <><AlertTriangle className="w-4 h-4" /> {staff.qodCount} {t('stat.qodIncidents')}</>
                 ) : (
-                  <><CalendarCheck className="w-4 h-4" /> No QOD Incidents</>
+                  <><CalendarCheck className="w-4 h-4" /> {t('stat.noQod')}</>
                 )}
               </div>
 
               {/* Working Dates */}
               <div className="p-4 bg-slate-50 flex-1 overflow-y-auto">
-                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Assigned Dates</h4>
+                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t('stat.assignedDates')}</h4>
                  <div className="flex flex-wrap gap-1.5">
                    {staff.dates.length === 0 ? (
-                      <span className="text-sm text-slate-400 italic">No shifts assigned.</span>
+                      <span className="text-sm text-slate-400 italic">{t('stat.noShiftsAssigned')}</span>
                    ) : staff.dates.map(dStr => {
                       const isHoliday = Boolean(dailyReqOverrides[dStr]?.isHoliday);
                       const isWei = isWeekend(parseISO(dStr)) || isHoliday;
@@ -140,7 +142,7 @@ export default function StaffAnalyticsView({ schedule, staffList, currentMonthDa
               {staff.offDays && staff.offDays.length > 0 && (
                  <div className="p-4 bg-white border-t border-slate-100 flex-1 overflow-y-auto">
                     <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      Requested Off-Days
+                      {t('stat.reqOffDays')}
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
                       {staff.offDays.map(dStr => (

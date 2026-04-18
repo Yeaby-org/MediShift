@@ -71,9 +71,9 @@ export function generateSchedule(year, month, staffList, globalReq, dailyReqOver
     const assignedToday = [];
     const remainingStaff = [...availableStaff];
 
-    // Helper: Find and assign by prefix
-    const assignByPrefix = (prefix) => {
-      const idx = remainingStaff.findIndex(s => s.level.startsWith(prefix));
+    // Helper: Find and assign by condition
+    const assignByCondition = (conditionFunc) => {
+      const idx = remainingStaff.findIndex(conditionFunc);
       if (idx !== -1) {
         const staff = remainingStaff[idx];
         assignedToday.push(staff.id);
@@ -83,16 +83,25 @@ export function generateSchedule(year, month, staffList, globalReq, dailyReqOver
       return false;
     };
 
-    // 3. Fulfill minimum R
-    for (let i = 0; i < req.minR; i++) {
+    // 2.5 Fulfill minimum Senior R (R2/R3)
+    for (let i = 0; i < (req.minSeniorR || 0); i++) {
        if (assignedToday.length >= req.total) break;
-       assignByPrefix('R');
+       assignByCondition(s => s.level === 'R2' || s.level === 'R3');
+    }
+
+    // 3. Fulfill minimum R
+    // Note: Senior Rs assigned above count towards the general minR requirement
+    let currentRCount = assignedToday.filter(id => staffList.find(s => s.id === id).level.startsWith('R')).length;
+    for (let i = currentRCount; i < req.minR; i++) {
+       if (assignedToday.length >= req.total) break;
+       assignByCondition(s => s.level.startsWith('R'));
     }
 
     // 4. Fulfill minimum PGY
-    for (let i = 0; i < req.minPGY; i++) {
+    let currentPGYCount = assignedToday.filter(id => staffList.find(s => s.id === id).level.startsWith('PGY')).length;
+    for (let i = currentPGYCount; i < req.minPGY; i++) {
        if (assignedToday.length >= req.total) break;
-       assignByPrefix('PGY');
+       assignByCondition(s => s.level.startsWith('PGY'));
     }
 
     // 5. Fill remaining spots with anyone left

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar as CalendarIcon, CheckCheck, Trash2 } from 'lucide-react';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format, isWeekend } from 'date-fns';
 import { cn } from '../lib/utils';
+import { useTranslation } from '../lib/i18n';
 
 export default function RuleModal({ 
   currentMonthDate, 
@@ -11,12 +12,14 @@ export default function RuleModal({
   removeDayReqOverride, 
   onClose 
 }) {
+  const { t } = useTranslation();
   const [selectedDates, setSelectedDates] = useState(new Set());
   
   // Form State
   const [ruleForm, setRuleForm] = useState({
     total: dailyRequirements.total,
     minR: dailyRequirements.minR,
+    minSeniorR: dailyRequirements.minSeniorR || 0,
     minPGY: dailyRequirements.minPGY,
     isHoliday: false
   });
@@ -67,7 +70,7 @@ export default function RuleModal({
         <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
             <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
               <CalendarIcon className="w-6 h-6 text-indigo-600" />
-              Custom Day Rules Planner
+              {t('ruleModal.title')}
             </h3>
             <button 
               onClick={onClose}
@@ -84,14 +87,14 @@ export default function RuleModal({
           <div className="md:w-1/2 flex flex-col border-r border-slate-200 bg-slate-50/50">
              <div className="p-4 border-b border-slate-200 flex items-center justify-between">
                 <div>
-                   <h4 className="font-bold text-slate-800 tracking-tight">Select Days</h4>
-                   <p className="text-xs text-slate-500 font-medium">Click to toggle dates for massive rule assignment.</p>
+                   <h4 className="font-bold text-slate-800 tracking-tight">{t('ruleModal.selectDays')}</h4>
+                   <p className="text-xs text-slate-500 font-medium">{t('ruleModal.selectDaysDesc')}</p>
                 </div>
                 <button 
                   onClick={handleSelectWeekends}
                   className="px-3 py-1.5 bg-indigo-100 text-indigo-700 hover:bg-indigo-600 hover:text-white rounded-lg text-xs font-bold transition-colors"
                 >
-                  Pick Weekends
+                  {t('ruleModal.pickWeekends')}
                 </button>
              </div>
              <div className="p-4 overflow-y-auto flex-1">
@@ -138,38 +141,47 @@ export default function RuleModal({
              {/* Form Area */}
              <div className="p-5 border-b border-slate-200 bg-white shadow-sm z-10">
                 <h4 className="font-bold text-slate-800 tracking-tight mb-4 flex items-center justify-between">
-                   <span>Apply Rules</span>
+                   <span>{t('ruleModal.applyRules')}</span>
                    <span className="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
-                     {selectedDates.size} days selected
+                     {selectedDates.size} {t('ruleModal.daysSelected')}
                    </span>
                 </h4>
                 
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-4 gap-2 mb-4">
                   <label className="block">
-                     <span className="block text-[11px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Total Needs</span>
+                     <span className="block text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1.5 text-center">{t('ruleModal.totalNeeds')}</span>
                      <input 
                        type="number" min="0" 
                        value={ruleForm.total}
                        onChange={e => setRuleForm(prev => ({ ...prev, total: parseInt(e.target.value) || 0 }))}
-                       className="w-full bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-center font-bold"
+                       className="w-full bg-white border border-slate-300 shadow-sm rounded-lg px-2 py-2 text-slate-900 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-center font-bold"
                      />
                   </label>
                   <label className="block">
-                     <span className="block text-[11px] font-black text-indigo-500 uppercase tracking-wider mb-1.5 text-center">Min R</span>
+                     <span className="block text-[10px] font-bold text-indigo-700 uppercase tracking-wider mb-1.5 text-center">{t('ruleModal.minSeniorR')}</span>
+                     <input 
+                       type="number" min="0" 
+                       value={ruleForm.minSeniorR}
+                       onChange={e => setRuleForm(prev => ({ ...prev, minSeniorR: parseInt(e.target.value) || 0 }))}
+                       className="w-full bg-white border border-slate-300 shadow-sm rounded-lg px-2 py-2 text-indigo-900 border-indigo-200 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-center font-bold"
+                     />
+                  </label>
+                  <label className="block">
+                     <span className="block text-[10px] font-bold text-indigo-500 uppercase tracking-wider mb-1.5 text-center">{t('ruleModal.minR')}</span>
                      <input 
                        type="number" min="0" 
                        value={ruleForm.minR}
                        onChange={e => setRuleForm(prev => ({ ...prev, minR: parseInt(e.target.value) || 0 }))}
-                       className="w-full bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-2 text-indigo-900 border-indigo-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-center font-bold"
+                       className="w-full bg-white border border-slate-300 shadow-sm rounded-lg px-2 py-2 text-indigo-900 border-indigo-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-center font-bold"
                      />
                   </label>
                   <label className="block">
-                     <span className="block text-[11px] font-black text-emerald-500 uppercase tracking-wider mb-1.5 text-center">Min PGY</span>
+                     <span className="block text-[10px] font-bold text-emerald-500 uppercase tracking-wider mb-1.5 text-center">{t('ruleModal.minPGY')}</span>
                      <input 
                        type="number" min="0" 
                        value={ruleForm.minPGY}
                        onChange={e => setRuleForm(prev => ({ ...prev, minPGY: parseInt(e.target.value) || 0 }))}
-                       className="w-full bg-white border border-slate-300 shadow-sm rounded-lg px-3 py-2 text-emerald-900 border-emerald-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-center font-bold"
+                       className="w-full bg-white border border-slate-300 shadow-sm rounded-lg px-2 py-2 text-emerald-900 border-emerald-100 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 text-center font-bold"
                      />
                   </label>
                 </div>
@@ -182,7 +194,7 @@ export default function RuleModal({
                       onChange={e => setRuleForm(prev => ({...prev, isHoliday: e.target.checked}))}
                       className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                     />
-                    <span className="text-xs font-bold text-slate-700">🌴 Treat as National Holiday (consumes weekend quota)</span>
+                    <span className="text-xs font-bold text-slate-700">{t('ruleModal.treatHoliday')}</span>
                   </label>
                 </div>
                 
@@ -191,17 +203,17 @@ export default function RuleModal({
                   disabled={selectedDates.size === 0}
                   className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-sm font-bold rounded-xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98]"
                 >
-                  Apply Rules to {selectedDates.size} Days
+                  {t('ruleModal.applyBtn')} {selectedDates.size} Days
                 </button>
              </div>
 
              {/* Overview Matrix */}
              <div className="flex-1 overflow-y-auto p-4 bg-slate-50">
-               <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Custom Active Rules</h4>
+               <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">{t('ruleModal.activeRules')}</h4>
                
                {overrideEntries.length === 0 ? (
                  <div className="text-center py-8 text-sm font-medium text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                   No specific rules applied this month.
+                   {t('ruleModal.noRules')}
                  </div>
                ) : (
                  <ul className="space-y-2">
@@ -214,7 +226,8 @@ export default function RuleModal({
                           </p>
                           <p className="text-xs font-semibold text-slate-500 mt-0.5">
                             Total: <span className="text-slate-800">{reqs.total}</span> | 
-                            R: <span className="text-indigo-600">{reqs.minR}</span> | 
+                            Snr R: <span className="text-indigo-600">{reqs.minSeniorR || 0}</span> | 
+                            Any R: <span className="text-indigo-500">{reqs.minR}</span> | 
                             PGY: <span className="text-emerald-600">{reqs.minPGY}</span>
                           </p>
                         </div>
