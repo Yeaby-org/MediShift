@@ -5,11 +5,11 @@ import { cn } from '../lib/utils';
 import { useTranslation } from '../lib/i18n';
 
 export default function StaffModal({ staff, currentMonthDate, onClose, onSave, isNew }) {
-  if (!staff) return null;
   const { t } = useTranslation();
-
-  const [formData, setFormData] = useState({ ...staff });
+  const [formData, setFormData] = useState(staff || {});
   
+  if (!staff) return null;
+
   const monthStart = currentMonthDate ? startOfMonth(currentMonthDate) : new Date();
   const monthEnd = currentMonthDate ? endOfMonth(currentMonthDate) : new Date();
   const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
@@ -21,11 +21,11 @@ export default function StaffModal({ staff, currentMonthDate, onClose, onSave, i
 
   const toggleOffDay = (dateStr) => {
     setFormData(prev => {
-      const isOff = prev.offDays.includes(dateStr);
+      const isOff = prev.offDays?.includes(dateStr);
       if (isOff) {
         return { ...prev, offDays: prev.offDays.filter(d => d !== dateStr) };
       } else {
-        return { ...prev, offDays: [...prev.offDays, dateStr] };
+        return { ...prev, offDays: [...(prev.offDays || []), dateStr] };
       }
     });
   };

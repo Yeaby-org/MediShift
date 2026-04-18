@@ -9,6 +9,7 @@ import {
   isSameMonth, 
   isToday 
 } from 'date-fns';
+import { AlertCircle, CheckCircle2, X, Settings2, Trash2, Edit2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../lib/i18n';
 
