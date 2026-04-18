@@ -60,7 +60,7 @@ const dictionary = {
     'cal.manualTarget': 'Manual Staff Target',
     'cal.selected': 'Selected',
     'cal.done': 'Done',
-    
+
     // StaffAnalyticsView
     'stat.title': 'Staff Analytics & Fairness Report',
     'stat.desc': 'Analyzing',
@@ -98,7 +98,7 @@ const dictionary = {
     'app.previous': '上個月',
     'app.next': '下個月',
     'app.calendar': '📅 醫院班表排班',
-    'app.analytics': '📊 公平性與分析報表',
+    'app.analytics': '📊 排班分析',
     'app.shortages': '名額短缺',
     'app.fullyStaffed': '人力達成',
 
@@ -151,15 +151,15 @@ const dictionary = {
     'cal.manualTarget': '手動綁定 / 拔除醫師',
     'cal.selected': '已選取',
     'cal.done': '完成',
-    
+
     // StaffAnalyticsView
-    'stat.title': '排班狀態分析與血汗指數報表',
+    'stat.title': '排班狀態分析',
     'stat.desc': '目前正在為本月分析共',
     'stat.membersFor': '位的醫師排班資料：',
     'stat.totalShifts': '總值班數',
     'stat.weekdays': '平日班',
     'stat.weekends': '假日班 / 連假',
-    'stat.qodIncidents': '次 QOD (做一休一過勞警告)',
+    'stat.qodIncidents': '次 QOD (過勞警告)',
     'stat.noQod': '無 QOD 狀況',
     'stat.assignedDates': '排到班的日期',
     'stat.noShiftsAssigned': '這個月他完全沒班。',
