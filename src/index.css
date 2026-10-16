@@ -4,6 +4,68 @@
 
 @layer base {
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply bg-apple-bg text-apple-ink antialiased font-sans;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white rounded-[18px] shadow-card;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full bg-apple-blue px-5 py-2 text-sm font-medium text-white transition-all duration-200 hover:bg-apple-blue-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-full bg-apple-fill px-4 py-2 text-sm font-medium text-apple-ink transition-all duration-200 hover:bg-apple-fill-hover active:scale-[0.98];
+  }
+
+  .btn-icon {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-full text-apple-ink-2 transition-colors duration-200 hover:bg-apple-fill hover:text-apple-ink;
+  }
+
+  .input {
+    @apply w-full rounded-[10px] border border-transparent bg-apple-bg px-3 py-2 text-[15px] text-apple-ink placeholder-apple-ink-3 transition-all duration-200 focus:border-apple-blue focus:bg-white focus:outline-none focus:ring-4 focus:ring-apple-blue/15;
+  }
+
+  .segmented {
+    @apply inline-flex rounded-full bg-apple-fill p-[3px];
+  }
+
+  .segmented-item {
+    @apply flex items-center justify-center gap-1.5 rounded-full px-4 py-1 text-[13px] font-medium text-apple-ink-2 transition-all duration-200 hover:text-apple-ink;
+  }
+
+  .segmented-item-active {
+    @apply bg-white text-apple-ink shadow-thumb;
+  }
+
+  .section-title {
+    @apply text-[13px] font-semibold text-apple-ink-2;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm animate-fade;
+  }
+
+  .modal-panel {
+    @apply flex max-h-[90vh] w-full flex-col overflow-hidden rounded-[22px] bg-white shadow-pop animate-pop;
+  }
+
+  /* iOS Settings style grouped list */
+  .inset-group {
+    @apply divide-y divide-apple-fill overflow-hidden rounded-[12px] bg-white;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
 }

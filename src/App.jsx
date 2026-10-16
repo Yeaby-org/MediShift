@@ -6,7 +6,7 @@ import CandidateBar from './components/CandidateBar';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import { cn } from './lib/utils';
-import { Stethoscope, Globe } from 'lucide-react';
+import { Stethoscope, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useTranslation } from './lib/i18n';
 
 const INITIAL_STAFF = [
@@ -142,14 +142,14 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-800 overflow-hidden font-sans selection:bg-indigo-100">
+    <div className="flex h-screen bg-apple-bg text-apple-ink overflow-hidden font-sans selection:bg-apple-blue/20">
       {/* Sidebar Panel */}
-      <div className="w-80 bg-white border-r border-slate-200 flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] relative z-10 flex-shrink-0">
-        <div className="p-6 pb-4 border-b border-slate-100 bg-white flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md shadow-indigo-600/20">
-             <Stethoscope className="text-white w-6 h-6" />
+      <div className="w-80 bg-apple-sidebar border-r border-apple-line/60 flex flex-col relative z-10 flex-shrink-0">
+        <div className="px-6 h-16 flex items-center gap-2.5 shrink-0">
+          <div className="w-8 h-8 bg-apple-ink rounded-[9px] flex items-center justify-center">
+             <Stethoscope className="text-white w-[18px] h-[18px]" strokeWidth={2.25} />
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">MediShift</h1>
+          <h1 className="text-[19px] font-semibold tracking-tight text-apple-ink">MediShift</h1>
         </div>
 
         <div className="flex-1 overflow-y-auto no-scrollbar">
@@ -174,52 +174,51 @@ function App() {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col relative overflow-hidden bg-slate-50/50">
-        <header className="h-[88px] border-b border-slate-200 bg-white/80 backdrop-blur-xl flex flex-col justify-center px-8 z-10 shadow-sm shrink-0">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-6">
-              <button 
-                onClick={() => setCurrentMonthDate(prev => subMonths(prev, 1))}
-                className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium transition-colors"
-              >
-                {t('app.previous')}
-              </button>
-              <h2 className="text-xl font-black text-slate-800 min-w-[150px] text-center tracking-tight">
-                {format(currentMonthDate, 'MMMM yyyy')}
-              </h2>
-              <button 
-                onClick={() => setCurrentMonthDate(prev => addMonths(prev, 1))}
-                className="px-3 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600 text-sm font-medium transition-colors"
-              >
-                {t('app.next')}
-              </button>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors text-xs font-bold"
-              >
-                <Globe className="w-3.5 h-3.5" />
-                {lang === 'en' ? '中文' : 'EN'}
-              </button>
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        <header className="h-16 border-b border-apple-line/60 bg-white/75 backdrop-blur-xl backdrop-saturate-150 flex items-center justify-between px-8 z-20 shrink-0">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentMonthDate(prev => subMonths(prev, 1))}
+              className="btn-icon"
+              title={t('app.previous')}
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <h2 className="text-2xl font-semibold tracking-tight text-apple-ink min-w-[170px] text-center tabular-nums">
+              {lang === 'zh' ? format(currentMonthDate, 'yyyy 年 M 月') : format(currentMonthDate, 'MMMM yyyy')}
+            </h2>
+            <button
+              onClick={() => setCurrentMonthDate(prev => addMonths(prev, 1))}
+              className="btn-icon"
+              title={t('app.next')}
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
 
-              <div className="bg-slate-100 p-1 rounded-xl flex items-center shadow-inner border border-slate-200 relative">
-                <div className="absolute inset-y-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-transform duration-300 ease-out z-0 pointer-events-none" style={{ transform: activeTab === 'calendar' ? 'translateX(4px)' : 'translateX(100%)' }} />
-                <button 
-                  onClick={() => setActiveTab('calendar')}
-                  className={cn("relative z-10 px-6 py-1.5 text-sm font-bold rounded-lg transition-colors flex items-center justify-center min-w-[110px]", activeTab === 'calendar' ? "text-indigo-700" : "text-slate-500 hover:text-slate-700")}
+          <div className="flex items-center gap-3">
+            <div className="segmented">
+              {[
+                { key: 'calendar', label: t('app.calendar') },
+                { key: 'analytics', label: t('app.analytics') },
+              ].map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => setActiveTab(tab.key)}
+                  className={cn("segmented-item min-w-[96px]", activeTab === tab.key && "segmented-item-active")}
                 >
-                  {t('app.calendar')}
+                  {tab.label}
                 </button>
-                <button 
-                  onClick={() => setActiveTab('analytics')}
-                  className={cn("relative z-10 px-6 py-1.5 text-sm font-bold rounded-lg transition-colors ml-1 flex items-center justify-center min-w-[110px]", activeTab === 'analytics' ? "text-indigo-700" : "text-slate-500 hover:text-slate-700")}
-                >
-                  {t('app.analytics')}
-                </button>
-              </div>
+              ))}
             </div>
+
+            <button
+              onClick={() => setLang(lang === 'en' ? 'zh' : 'en')}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-[13px] font-medium text-apple-ink-2 hover:text-apple-ink hover:bg-apple-fill transition-colors"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              {lang === 'en' ? '中文' : 'EN'}
+            </button>
           </div>
         </header>
 
@@ -233,7 +232,7 @@ function App() {
 
         <main className="flex-1 overflow-hidden relative">
           {activeTab === 'calendar' ? (
-             <div className="absolute inset-0 p-6 overflow-y-auto">
+             <div className="absolute inset-0 px-8 py-6 overflow-y-auto">
                <CalendarView 
                  currentMonthDate={currentMonthDate}
                  schedule={schedule}
@@ -250,7 +249,7 @@ function App() {
                />
              </div>
           ) : (
-             <div className="absolute inset-0 p-6 overflow-y-auto">
+             <div className="absolute inset-0 px-8 py-6 overflow-y-auto">
                <StaffAnalyticsView 
                  schedule={schedule}
                  staffList={staffList}

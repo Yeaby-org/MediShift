@@ -1,12 +1,12 @@
 import React, { useMemo } from 'react';
 import { format, isWeekend, parseISO } from 'date-fns';
-import { Users, AlertTriangle, CalendarCheck } from 'lucide-react';
-import { cn } from '../lib/utils';
-import { computeStaffStats } from '../lib/scheduler';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { cn, levelDotClass } from '../lib/utils';
 import { useTranslation } from '../lib/i18n';
+import { computeStaffStats } from '../lib/scheduler';
 
 export default function StaffAnalyticsView({ schedule, staffList, currentMonthDate, dailyReqOverrides }) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const analytics = useMemo(() => {
     const stats = computeStaffStats(schedule, staffList, dailyReqOverrides);
 
@@ -19,85 +19,81 @@ export default function StaffAnalyticsView({ schedule, staffList, currentMonthDa
   }, [schedule, staffList, dailyReqOverrides]);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div>
-          <h2 className="text-xl font-black text-slate-800 flex items-center gap-2">
-            <Users className="w-6 h-6 text-indigo-600" />
-            {t('stat.title')}
-          </h2>
-          <p className="text-sm font-medium text-slate-500 mt-1">
-            {t('stat.desc')} {analytics.length} {t('stat.membersFor')} {format(currentMonthDate, 'MMMM yyyy')}.
-          </p>
-        </div>
+    <div className="max-w-6xl mx-auto space-y-8 pb-8">
+      <div className="pt-2">
+        <h2 className="text-[32px] font-semibold tracking-tight text-apple-ink">
+          {t('stat.title')}
+        </h2>
+        <p className="text-[15px] text-apple-ink-2 mt-1">
+          {t('stat.desc')} {analytics.length} {t('stat.membersFor')} {lang === 'zh' ? format(currentMonthDate, 'yyyy 年 M 月') : format(currentMonthDate, 'MMMM yyyy')}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
         {analytics.map(staff => {
           const totalShifts = staff.wdCount + staff.weCount;
-          const isR = staff.level.startsWith('R');
           const hasQOD = staff.qodCount > 0;
-          
+
           return (
-            <div key={staff.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col hover:border-indigo-200 hover:shadow-md transition-all">
-              
+            <div key={staff.id} className="card p-6 flex flex-col gap-5 transition-shadow duration-200 hover:shadow-[0_8px_28px_rgba(0,0,0,0.08)]">
+
               {/* Header */}
-              <div className="p-4 border-b border-slate-100 flex items-start justify-between bg-slate-50/50">
+              <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-base font-bold text-slate-800">{staff.name}</h3>
-                  <span className={cn(
-                    "inline-block mt-1 text-[10px] uppercase font-black px-2 py-0.5 rounded-md border",
-                    isR ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  )}>
+                  <h3 className="text-[19px] font-semibold tracking-tight text-apple-ink">{staff.name}</h3>
+                  <span className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-apple-ink-2">
+                    <span className={cn("w-2 h-2 rounded-full", levelDotClass(staff.level))} />
                     {staff.level}
                   </span>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-black text-slate-800 leading-none">{totalShifts}</div>
-                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{t('stat.totalShifts')}</div>
+                  <div className="text-[40px] leading-none font-semibold tracking-tight tabular-nums text-apple-ink">{totalShifts}</div>
+                  <div className="text-xs text-apple-ink-3 mt-1">{t('stat.totalShifts')}</div>
                 </div>
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100 shrink-0">
-                 <div className="p-4 flex flex-col items-center justify-center bg-white">
-                    <div className="text-xl font-bold text-slate-700">{staff.wdCount} <span className="text-sm font-medium text-slate-400">/ {staff.maxWeekdays}</span></div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t('stat.weekdays')}</div>
-                 </div>
-                 <div className="p-4 flex flex-col items-center justify-center bg-white">
-                    <div className="text-xl font-bold text-slate-700">{staff.weCount} <span className="text-sm font-medium text-slate-400">/ {staff.maxWeekends}</span></div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t('stat.weekends')}</div>
-                 </div>
+              <div className="grid grid-cols-2 gap-3">
+                 {[
+                   { label: t('stat.weekdays'), value: staff.wdCount, max: staff.maxWeekdays },
+                   { label: t('stat.weekends'), value: staff.weCount, max: staff.maxWeekends },
+                 ].map(s => (
+                   <div key={s.label} className="bg-apple-bg rounded-[12px] px-4 py-3">
+                      <div className="text-xs text-apple-ink-3">{s.label}</div>
+                      <div className="text-[22px] font-semibold tabular-nums text-apple-ink">
+                        {s.value}<span className="text-sm font-medium text-apple-ink-3"> / {s.max}</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-apple-fill mt-2 overflow-hidden">
+                        <div className="h-full rounded-full bg-apple-blue transition-all duration-500" style={{ width: `${s.max ? Math.min(100, (s.value / s.max) * 100) : 0}%` }} />
+                      </div>
+                   </div>
+                 ))}
               </div>
 
-              {/* QOD Alert */}
-              <div className={cn(
-                "p-3 flex items-center justify-center gap-2 border-b border-slate-100 font-bold text-sm shrink-0",
-                hasQOD ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"
-              )}>
+              {/* QOD */}
+              <div className={cn("flex items-center gap-1.5 text-[13px] font-medium", hasQOD ? "text-[#c93400]" : "text-[#248a3d]")}>
                 {hasQOD ? (
                   <><AlertTriangle className="w-4 h-4" /> {staff.qodCount} {t('stat.qodIncidents')}</>
                 ) : (
-                  <><CalendarCheck className="w-4 h-4" /> {t('stat.noQod')}</>
+                  <><CheckCircle2 className="w-4 h-4" /> {t('stat.noQod')}</>
                 )}
               </div>
 
               {/* Working Dates */}
-              <div className="p-4 bg-slate-50 flex-1 overflow-y-auto">
-                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t('stat.assignedDates')}</h4>
+              <div>
+                 <h4 className="text-xs text-apple-ink-3 mb-2">{t('stat.assignedDates')}</h4>
                  <div className="flex flex-wrap gap-1.5">
                    {staff.dates.length === 0 ? (
-                      <span className="text-sm text-slate-400 italic">{t('stat.noShiftsAssigned')}</span>
+                      <span className="text-[13px] text-apple-ink-3">{t('stat.noShiftsAssigned')}</span>
                    ) : staff.dates.map(dStr => {
                       const isHoliday = Boolean(dailyReqOverrides[dStr]?.isHoliday);
                       const isWei = isWeekend(parseISO(dStr)) || isHoliday;
                       return (
                         <span key={dStr} className={cn(
-                          "px-2 py-1 rounded text-xs font-bold border flex items-center gap-1",
-                          isWei ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-white text-slate-600 border-slate-200"
+                          "px-2.5 py-1 rounded-full text-xs font-medium tabular-nums",
+                          isWei ? "bg-apple-orange/15 text-[#b25000]" : "bg-apple-bg text-apple-ink"
                         )}>
-                          {format(parseISO(dStr), 'MMM d')}
-                          {isHoliday && <span className="text-[10px]">&nbsp;🌴</span>}
+                          {format(parseISO(dStr), 'M/d')}
                         </span>
                       )
                    })}
@@ -106,20 +102,18 @@ export default function StaffAnalyticsView({ schedule, staffList, currentMonthDa
 
               {/* Off Dates */}
               {staff.offDays && staff.offDays.length > 0 && (
-                 <div className="p-4 bg-white border-t border-slate-100 flex-1 overflow-y-auto">
-                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                      {t('stat.reqOffDays')}
-                    </h4>
+                 <div>
+                    <h4 className="text-xs text-apple-ink-3 mb-2">{t('stat.reqOffDays')}</h4>
                     <div className="flex flex-wrap gap-1.5">
-                      {staff.offDays.map(dStr => (
-                        <span key={dStr} className="px-2 py-1 rounded text-xs font-bold border bg-slate-50 text-slate-500 border-slate-200 line-through decoration-slate-300">
-                          {format(parseISO(dStr), 'MMM d')}
+                      {[...staff.offDays].sort().map(dStr => (
+                        <span key={dStr} className="px-2.5 py-1 rounded-full text-xs font-medium tabular-nums text-apple-ink-3 bg-apple-bg line-through decoration-apple-line">
+                          {format(parseISO(dStr), 'M/d')}
                         </span>
                       ))}
                     </div>
                  </div>
               )}
-              
+
             </div>
           )
         })}

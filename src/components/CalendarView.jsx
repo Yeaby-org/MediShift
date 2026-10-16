@@ -1,16 +1,18 @@
 import React, { useState } from 'react';
-import { 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  format, 
-  isSameMonth, 
-  isToday 
+import {
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  format,
+  isSameMonth,
+  isToday,
+  isWeekend,
+  parseISO
 } from 'date-fns';
-import { AlertCircle, AlertTriangle, CheckCircle2, X, Settings2, Trash2, Edit2, Pin } from 'lucide-react';
-import { cn } from '../lib/utils';
+import { AlertTriangle, X, Trash2, ChevronRight, Pin } from 'lucide-react';
+import { cn, levelDotClass } from '../lib/utils';
 import { useTranslation } from '../lib/i18n';
 
 export default function CalendarView({
@@ -27,7 +29,7 @@ export default function CalendarView({
   updateDayReqOverride,
   removeDayReqOverride
 }) {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [selectedDay, setSelectedDay] = useState(null);
 
   const monthStart = startOfMonth(currentMonthDate);
@@ -41,14 +43,16 @@ export default function CalendarView({
     end: endDate
   });
 
-  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekDays = lang === 'zh'
+    ? ['日', '一', '二', '三', '四', '五', '六']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const handleDayClick = (dayStr) => {
     setSelectedDay(dayStr);
   };
 
   const currentDayStaffIds = selectedDay ? (schedule[selectedDay] || []) : [];
-  
+
   // Local state for editing the day's overrides inside the modal
   const [reqEditMode, setReqEditMode] = useState(false);
   // default to either the override, or the global baseline
@@ -87,26 +91,37 @@ export default function CalendarView({
     setReqEditMode(false);
   };
 
+  const isShort = currentDayStaffIds.length < activeReq.total;
+
+  const reqFields = [
+    { name: 'total', label: t('cal.total'), value: activeReq.total },
+    { name: 'minSeniorR', label: t('cal.snrR'), value: activeReq.minSeniorR || 0 },
+    { name: 'minR', label: t('cal.anyR'), value: activeReq.minR },
+    { name: 'minPGY', label: t('cal.pgy'), value: activeReq.minPGY },
+  ];
+
   return (
     <>
-      <div className="min-h-full w-full flex flex-col bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden relative z-10">
+      <div className="card min-h-full w-full flex flex-col overflow-hidden relative z-10">
         {/* Week Header */}
-        <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50 z-20 sticky top-0 shrink-0">
-          {weekDays.map(day => (
-            <div key={day} className="py-3 text-center text-xs font-black text-slate-500 uppercase tracking-widest">
+        <div className="grid grid-cols-7 bg-white/90 backdrop-blur z-20 sticky top-0 shrink-0 border-b border-apple-fill">
+          {weekDays.map((day, i) => (
+            <div key={day} className={cn("py-3 text-center text-xs font-medium", i === 0 || i === 6 ? "text-apple-ink-3" : "text-apple-ink-2")}>
               {day}
             </div>
           ))}
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 flex-1 auto-rows-fr cursor-pointer bg-slate-100 gap-[1px]">
+        <div className="grid grid-cols-7 flex-1 auto-rows-fr bg-apple-fill gap-px">
           {days.map((day) => {
             const formattedDate = format(day, dateFormat);
             const isCurrentMonth = isSameMonth(day, monthStart);
             const isCurrentDay = isToday(day);
             const hasOverride = !!dailyReqOverrides[formattedDate];
-            
+            const isHoliday = Boolean(dailyReqOverrides[formattedDate]?.isHoliday);
+            const isOffDay = isWeekend(day) || isHoliday;
+
             const dayStaffIds = schedule[formattedDate] || [];
             // When a staff is focused/searched, only show that person's shifts
             const dayStaff = dayStaffIds
@@ -114,13 +129,13 @@ export default function CalendarView({
               .map(id => staffList.find(s => s.id === id))
               .filter(Boolean);
             const hasShortage = shortages.includes(formattedDate);
-            
+
             const isSearchedDay = searchedStaff && dayStaffIds.includes(searchedStaff.id);
             const searchActive = !!searchedStaff;
 
             return (
-              <div 
-                key={day.toString()} 
+              <div
+                key={day.toString()}
                 onClick={() => {
                   if (isCurrentMonth) {
                     handleDayClick(formattedDate);
@@ -128,70 +143,49 @@ export default function CalendarView({
                   }
                 }}
                 className={cn(
-                  "min-h-[110px] p-2 flex flex-col transition-all duration-300 relative bg-white overflow-hidden",
-                  !isCurrentMonth ? "bg-slate-50/50 text-slate-400" : "hover:bg-slate-50",
-                  isCurrentDay && "bg-indigo-50/50 hover:bg-indigo-50",
-                  searchActive && isSearchedDay && "ring-2 ring-inset ring-indigo-500 bg-indigo-50 shadow-[inset_0_0_20px_rgba(99,102,241,0.05)]",
-                  searchActive && !isSearchedDay && "opacity-30 grayscale"
+                  "min-h-[112px] p-2 flex flex-col transition-all duration-200 relative overflow-hidden",
+                  !isCurrentMonth ? "bg-[#fafafc] cursor-default" : "bg-white hover:bg-[#fafafc] cursor-pointer",
+                  searchActive && isSearchedDay && "bg-apple-blue-soft/60 hover:bg-apple-blue-soft",
+                  searchActive && !isSearchedDay && isCurrentMonth && "opacity-40"
                 )}
               >
-                <div className="flex justify-between items-start mb-2">
+                <div className="flex justify-between items-start mb-1.5">
                   <span className={cn(
-                    "text-sm font-bold w-7 h-7 flex items-center justify-center rounded-full leading-none",
-                    isCurrentDay ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30" : "text-slate-700",
-                    !isCurrentDay && isCurrentMonth && dailyReqOverrides[formattedDate]?.isHoliday ? "text-rose-600" : ""
+                    "text-[13px] font-medium w-7 h-7 flex items-center justify-center rounded-full tabular-nums",
+                    !isCurrentMonth && "text-apple-line",
+                    isCurrentMonth && (isCurrentDay
+                      ? "bg-apple-red text-white font-semibold"
+                      : isHoliday ? "text-apple-red" : isOffDay ? "text-apple-ink-3" : "text-apple-ink")
                   )}>
                     {format(day, 'd')}
                   </span>
-                  
+
                   {isCurrentMonth && (
-                    <div className="flex flex-col items-end gap-1">
-                      {hasShortage ? (
-                         <div className="flex items-center text-rose-600 gap-1 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100 text-[10px] uppercase font-black tracking-wider" title="Staff shortage">
-                           <AlertCircle className="w-3 h-3" />
-                           <span>Short</span>
-                         </div>
-                      ) : (
-                         <div className="flex items-center text-emerald-500 gap-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Fully staffed">
-                           <CheckCircle2 className="w-3.5 h-3.5" />
-                         </div>
-                      )}
-                      <div className="flex gap-1 items-center mt-1">
-                        {dailyReqOverrides[formattedDate]?.isHoliday && (
-                           <div className="text-[9px] font-black uppercase text-rose-600 bg-rose-100 px-1 rounded shadow-sm border border-rose-200" title="National Holiday">Hol</div>
-                        )}
-                        {pinConflicts[formattedDate] && (
-                           <div className="text-amber-600 bg-amber-50 border border-amber-200 rounded px-0.5 shadow-sm" title={t('pin.conflicts')}>
-                             <AlertTriangle className="w-3 h-3" />
-                           </div>
-                        )}
-                        {hasOverride && (
-                           <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm" title="Has custom requirements override" />
-                        )}
-                      </div>
+                    <div className="flex items-center gap-1 pt-1.5 pr-0.5">
+                      {isHoliday && <span className="text-[10px] font-medium text-apple-red">{t('cal.holiday')}</span>}
+                      {hasOverride && <span className="w-1.5 h-1.5 rounded-full bg-apple-ink-3" title={t('cal.overridden')} />}
+                      {pinConflicts[formattedDate] && <span className="w-1.5 h-1.5 rounded-full bg-apple-orange" title={t('pin.conflicts')} />}
+                      {hasShortage && <span className="w-1.5 h-1.5 rounded-full bg-apple-red" title={t('cal.shortage')} />}
                     </div>
                   )}
                 </div>
 
                 {/* Staff List for the day */}
                 {isCurrentMonth && (
-                  <div className="flex flex-col gap-1 mt-auto flex-1 h-0 overflow-y-auto no-scrollbar pointer-events-none pb-1">
+                  <div className="flex flex-col gap-1 mt-auto flex-1 h-0 overflow-y-auto no-scrollbar pointer-events-none">
                     {dayStaff.map(s => {
                       const isSearchedPerson = searchedStaff?.id === s.id;
-                      const isR = s.level.startsWith('R');
                       return (
-                        <div 
-                          key={s.id} 
+                        <div
+                          key={s.id}
                           className={cn(
-                            "px-2 py-1 rounded-md text-[11px] font-bold transition-all truncate border flex items-center gap-1",
-                            isSearchedPerson
-                              ? "bg-indigo-600 text-white border-indigo-700 shadow-md shadow-indigo-600/20"
-                              : isR
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-100"
-                                : "bg-emerald-50 text-emerald-700 border-emerald-100"
+                            "px-2 py-[3px] rounded-md text-[12px] font-medium transition-all truncate flex items-center gap-1.5",
+                            isSearchedPerson ? "bg-apple-blue text-white" : "bg-apple-bg text-apple-ink"
                           )}
                         >
-                          {isPinned(s, formattedDate) && <Pin className="w-2.5 h-2.5 shrink-0 fill-current" />}
+                          {isPinned(s, formattedDate)
+                            ? <Pin className={cn("w-2.5 h-2.5 shrink-0 fill-current", !isSearchedPerson && "text-apple-blue")} />
+                            : <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", isSearchedPerson ? "bg-white" : levelDotClass(s.level))} />}
                           <span className="truncate">{s.name}</span>
                         </div>
                       )
@@ -206,190 +200,152 @@ export default function CalendarView({
 
       {/* Manual Adjustment Modal */}
       {selectedDay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-               <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
-                 {format(new Date(selectedDay), 'MMM d, yyyy')}
-               </h3>
-               <button 
-                 onClick={() => setSelectedDay(null)}
-                 className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shadow-sm"
-               >
-                 <X className="w-5 h-5" />
+        <div className="modal-overlay" onClick={() => setSelectedDay(null)}>
+          <div className="modal-panel max-w-[400px] bg-apple-bg" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 pt-5 pb-3 flex items-start justify-between">
+               <div>
+                 <div className="text-[13px] font-medium text-apple-ink-2">{format(parseISO(selectedDay), 'EEEE')}</div>
+                 <h3 className="text-[22px] font-semibold tracking-tight text-apple-ink">
+                   {lang === 'zh' ? format(parseISO(selectedDay), 'M 月 d 日') : format(parseISO(selectedDay), 'MMM d, yyyy')}
+                 </h3>
+               </div>
+               <button onClick={() => setSelectedDay(null)} className="btn-icon bg-apple-fill/70">
+                 <X className="w-4 h-4" />
                </button>
             </div>
-            
-            <div className="overflow-y-auto flex-1">
-              
-              {/* Day Overview Section */}
-              <div className="px-4 py-4 border-b border-slate-100 bg-indigo-50/30 flex items-center gap-4">
-                 <div className="bg-white px-3 py-2 rounded-xl shadow-sm border border-indigo-100/50 flex-1 flex flex-col items-center justify-center">
-                   <div className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-0.5">{t('cal.assigned')}</div>
-                   <div className="text-xl font-black text-indigo-700 leading-none">{currentDayStaffIds.length} <span className="text-sm text-indigo-300">/ {activeReq.total}</span></div>
-                 </div>
-                 <div className="bg-white px-3 py-2 rounded-xl shadow-sm border border-slate-100 flex-1 flex flex-col items-center justify-center">
-                   <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{t('cal.day')}</div>
-                   <div className="text-sm font-bold text-slate-700">{format(new Date(selectedDay), 'EEEE')}</div>
-                 </div>
-                 <div className={cn(
-                    "px-3 py-2 rounded-xl shadow-sm border flex-1 flex flex-col items-center justify-center",
-                    currentDayStaffIds.length < activeReq.total ? "bg-rose-50 border-rose-100" : "bg-emerald-50 border-emerald-100"
-                 )}>
-                   <div className={cn("text-[10px] font-black uppercase tracking-widest mb-0.5", currentDayStaffIds.length < activeReq.total ? "text-rose-500" : "text-emerald-500")}>{t('cal.status')}</div>
-                   <div className={cn("text-xs font-bold whitespace-nowrap", currentDayStaffIds.length < activeReq.total ? "text-rose-700" : "text-emerald-700")}>
-                     {currentDayStaffIds.length < activeReq.total ? t('cal.shortage') : t('cal.filled')}
-                   </div>
-                 </div>
-              </div>
 
-              {/* Day Requirements Override Section */}
-              <div className="p-4 border-b border-slate-100 bg-white">
-                 <div className="flex items-center justify-between mb-3">
-                   <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                     <Settings2 className="w-3.5 h-3.5" />
-                     {t('cal.dayReq')}
-                   </h4>
-                   {!reqEditMode && dailyReqOverrides[selectedDay] && (
-                     <div className="flex items-center gap-2">
-                       <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200">{t('cal.overridden')}</span>
-                       <button onClick={() => removeDayReqOverride(selectedDay)} className="text-slate-400 hover:text-rose-500" title="Remove override">
-                         <Trash2 className="w-3.5 h-3.5" />
-                       </button>
-                     </div>
-                   )}
-                 </div>
-                 
-                 {reqEditMode ? (
-                   <form onSubmit={handleOverrideSave} className="space-y-3">
-                       <div className="grid grid-cols-4 gap-2">
-                         <label className="block">
-                           <span className="block text-[10px] font-bold text-slate-500 mb-1">{t('cal.total')}</span>
-                           <input name="total" type="number" min="0" defaultValue={activeReq.total} className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm font-bold text-slate-900 focus:outline-none focus:border-indigo-500" />
-                         </label>
-                         <label className="block">
-                           <span className="block text-[10px] font-bold text-slate-500 mb-1">{t('cal.snrR')}</span>
-                           <input name="minSeniorR" type="number" min="0" defaultValue={activeReq.minSeniorR || 0} className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm font-bold text-indigo-900 focus:outline-none focus:border-indigo-500" />
-                         </label>
-                         <label className="block">
-                           <span className="block text-[10px] font-bold text-slate-500 mb-1">{t('cal.anyR')}</span>
-                           <input name="minR" type="number" min="0" defaultValue={activeReq.minR} className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm font-bold text-slate-900 focus:outline-none focus:border-indigo-500" />
-                         </label>
-                         <label className="block">
-                           <span className="block text-[10px] font-bold text-slate-500 mb-1">{t('cal.pgy')}</span>
-                           <input name="minPGY" type="number" min="0" defaultValue={activeReq.minPGY} className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm font-bold text-slate-900 focus:outline-none focus:border-indigo-500" />
-                         </label>
-                       </div>
-                       <div>
-                         <label className="flex items-center gap-2 cursor-pointer">
-                           <input name="isHoliday" type="checkbox" defaultChecked={activeReq.isHoliday} className="w-3.5 h-3.5 text-indigo-600 rounded border-slate-300" />
-                           <span className="text-[11px] font-bold text-slate-600">{t('cal.markHoliday')}</span>
-                         </label>
-                       </div>
-                       <div className="flex gap-2 pt-1">
-                        <button type="button" onClick={() => setReqEditMode(false)} className="flex-1 py-1 text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded">{t('cal.cancel')}</button>
-                        <button type="submit" className="flex-1 py-1 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded shadow-sm">{t('cal.saveRules')}</button>
-                      </div>
-                   </form>
-                 ) : (
-                   <div className="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-2.5 shadow-sm group cursor-pointer hover:border-slate-300 transition-colors" onClick={() => setReqEditMode(true)}>
-                       <div className="flex gap-4">
-                         <div className="text-center">
-                           <div className="text-[10px] font-bold text-slate-400">{t('cal.total')}</div>
-                           <div className="text-sm font-black text-slate-800">{activeReq.total}</div>
-                         </div>
-                         <div className="text-center">
-                           <div className="text-[10px] font-bold text-slate-400">{t('cal.snrR')}</div>
-                           <div className="text-sm font-black text-indigo-700">{activeReq.minSeniorR || 0}</div>
-                         </div>
-                         <div className="text-center">
-                           <div className="text-[10px] font-bold text-slate-400">{t('cal.anyR')}</div>
-                           <div className="text-sm font-black text-indigo-600">{activeReq.minR}</div>
-                         </div>
-                         <div className="text-center">
-                           <div className="text-[10px] font-bold text-slate-400">{t('cal.pgy')}</div>
-                           <div className="text-sm font-black text-emerald-600">{activeReq.minPGY}</div>
-                         </div>
-                         {activeReq.isHoliday && (
-                           <div className="flex items-center ml-2">
-                             <div className="text-[10px] font-black bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded border border-rose-200">HOLIDAY</div>
-                           </div>
-                         )}
-                       </div>
-                      <Edit2 className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+            <div className="overflow-y-auto flex-1 px-4 pb-4 space-y-5">
+
+              {/* Day Overview Section */}
+              <div className="inset-group grid grid-cols-2 divide-y-0 divide-x">
+                 <div className="px-4 py-3">
+                   <div className="text-xs text-apple-ink-3">{t('cal.assigned')}</div>
+                   <div className="text-2xl font-semibold tabular-nums text-apple-ink">
+                     {currentDayStaffIds.length}<span className="text-base text-apple-ink-3 font-medium"> / {activeReq.total}</span>
                    </div>
-                 )}
+                 </div>
+                 <div className="px-4 py-3">
+                   <div className="text-xs text-apple-ink-3">{t('cal.status')}</div>
+                   <div className={cn("text-[15px] font-semibold mt-1.5 flex items-center gap-1.5", isShort ? "text-apple-red" : "text-apple-green")}>
+                     <span className={cn("w-2 h-2 rounded-full", isShort ? "bg-apple-red" : "bg-apple-green")} />
+                     {isShort ? t('cal.shortage') : t('cal.filled')}
+                   </div>
+                 </div>
               </div>
 
               {/* Pin Conflicts */}
               {selectedDayConflicts.length > 0 && (
-                <div className="mx-4 mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200">
-                  <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                <div className="rounded-[12px] bg-apple-orange/10 px-4 py-3">
+                  <h4 className="text-[13px] font-semibold text-[#c93400] flex items-center gap-1.5 mb-1">
                     <AlertTriangle className="w-3.5 h-3.5" />
                     {t('pin.conflicts')}
                   </h4>
                   <ul className="space-y-0.5">
                     {selectedDayConflicts.map(({ staffId, type }) => (
-                      <li key={staffId + type} className="text-xs font-semibold text-amber-800">
-                        {staffList.find(s => s.id === staffId)?.name}: {t(`pin.${type}`)}
+                      <li key={staffId + type} className="text-[13px] text-[#c93400]/90">
+                        {staffList.find(s => s.id === staffId)?.name}：{t(`pin.${type}`)}
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
 
+              {/* Day Requirements Override Section */}
+              <div>
+                 <div className="flex items-center justify-between px-4 mb-1.5">
+                   <h4 className="text-xs font-medium text-apple-ink-2">{t('cal.dayReq')}</h4>
+                   {!reqEditMode && dailyReqOverrides[selectedDay] && (
+                     <button onClick={() => removeDayReqOverride(selectedDay)} className="text-xs text-apple-red flex items-center gap-1 hover:opacity-70" title="Remove override">
+                       <Trash2 className="w-3 h-3" />
+                       {t('cal.overridden')}
+                     </button>
+                   )}
+                 </div>
+
+                 {reqEditMode ? (
+                   <form onSubmit={handleOverrideSave} className="inset-group p-4 space-y-3 divide-y-0">
+                       <div className="grid grid-cols-4 gap-2">
+                         {reqFields.map(f => (
+                           <label key={f.name} className="block">
+                             <span className="block text-[11px] text-apple-ink-3 mb-1 text-center">{f.label}</span>
+                             <input name={f.name} type="number" min="0" defaultValue={f.value} className="input px-1 py-1.5 text-center font-medium tabular-nums" />
+                           </label>
+                         ))}
+                       </div>
+                       <label className="flex items-center gap-2 cursor-pointer pt-1">
+                         <input name="isHoliday" type="checkbox" defaultChecked={activeReq.isHoliday} className="w-4 h-4 rounded accent-apple-blue" />
+                         <span className="text-[13px] text-apple-ink">{t('cal.markHoliday')}</span>
+                       </label>
+                       <div className="flex gap-2 pt-1">
+                        <button type="button" onClick={() => setReqEditMode(false)} className="btn-secondary flex-1 py-1.5">{t('cal.cancel')}</button>
+                        <button type="submit" className="btn-primary flex-1 py-1.5">{t('cal.saveRules')}</button>
+                      </div>
+                   </form>
+                 ) : (
+                   <button className="inset-group w-full flex items-center px-4 py-3 group text-left" onClick={() => setReqEditMode(true)}>
+                       <div className="flex-1 flex gap-5">
+                         {reqFields.map(f => (
+                           <div key={f.name}>
+                             <div className="text-[11px] text-apple-ink-3">{f.label}</div>
+                             <div className="text-[17px] font-semibold tabular-nums text-apple-ink">{f.value}</div>
+                           </div>
+                         ))}
+                         {activeReq.isHoliday && (
+                           <div className="self-center text-xs font-medium text-apple-red">{t('cal.holiday')}</div>
+                         )}
+                       </div>
+                      <ChevronRight className="w-4 h-4 text-apple-line group-hover:text-apple-ink-3 transition-colors" />
+                   </button>
+                 )}
+              </div>
+
               {/* Staff Manual Assignment Section */}
-              <div className="p-4 space-y-2">
-                 <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 flex justify-between">
+              <div>
+                 <h4 className="text-xs font-medium text-apple-ink-2 px-4 mb-1.5 flex justify-between">
                     <span>{t('cal.manualTarget')}</span>
-                    <span className="text-indigo-600 font-bold">{currentDayStaffIds.length} {t('cal.selected')}</span>
+                    <span className="text-apple-ink-3 tabular-nums">{currentDayStaffIds.length} {t('cal.selected')}</span>
                  </h4>
+                 <div className="inset-group">
                  {staffList.map(staff => {
                    const isWorking = currentDayStaffIds.includes(staff.id);
-                   const isR = staff.level.startsWith('R');
+                   const pinned = isPinned(staff, selectedDay);
                    return (
-                     <label key={staff.id} className={cn(
-                       "flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all border",
-                       isWorking ? "bg-white border-indigo-200 shadow-sm" : "bg-slate-50 border-transparent hover:bg-slate-100"
-                     )}>
-                       <div>
-                         <span className={cn("text-sm font-bold", isWorking ? "text-slate-900" : "text-slate-600")}>{staff.name}</span>
-                         <span className={cn(
-                           "text-[9px] uppercase font-black px-1.5 py-0.5 rounded ml-2 border",
-                           isR ? "bg-indigo-50 text-indigo-600 border-indigo-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                         )}>{staff.level}</span>
+                     <label key={staff.id} className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-apple-bg/50 transition-colors">
+                       <span className={cn("w-2 h-2 rounded-full shrink-0", levelDotClass(staff.level))} />
+                       <div className="flex-1 min-w-0">
+                         <span className="text-[15px] text-apple-ink">{staff.name}</span>
+                         <span className="text-xs text-apple-ink-3 ml-2">{staff.level}</span>
                        </div>
-                       <div className="relative flex items-center gap-2 h-5">
-                         <button
-                           type="button"
-                           onClick={(e) => { e.preventDefault(); togglePin(selectedDay, staff.id); }}
-                           title={isPinned(staff, selectedDay) ? t('pin.unpin') : t('pin.pin')}
-                           className={cn(
-                             "p-1 rounded-md transition-colors",
-                             isPinned(staff, selectedDay) ? "text-indigo-600 bg-indigo-100" : "text-slate-300 hover:text-indigo-500 hover:bg-indigo-50"
-                           )}
-                         >
-                           <Pin className={cn("w-3.5 h-3.5", isPinned(staff, selectedDay) && "fill-current")} />
-                         </button>
+                       <button
+                         type="button"
+                         onClick={(e) => { e.preventDefault(); togglePin(selectedDay, staff.id); }}
+                         title={pinned ? t('pin.unpin') : t('pin.pin')}
+                         className={cn(
+                           "w-7 h-7 rounded-full flex items-center justify-center transition-colors",
+                           pinned ? "text-white bg-apple-blue" : "text-apple-line hover:text-apple-blue hover:bg-apple-blue-soft"
+                         )}
+                       >
+                         <Pin className={cn("w-3.5 h-3.5", pinned && "fill-current")} />
+                       </button>
+                       <div className="relative flex items-center">
                          <input
-                           type="checkbox" 
+                           type="checkbox"
                            checked={isWorking}
                            onChange={() => toggleStaffInDay(staff.id)}
                            className="peer sr-only"
                          />
-                         <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer-checked:bg-indigo-500 transition-colors after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:shadow-sm after:transition-all peer-checked:after:translate-x-4"></div>
+                         {/* iOS-style switch */}
+                         <div className="w-[46px] h-7 bg-apple-fill rounded-full peer-checked:bg-apple-green transition-colors duration-200 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-6 after:w-6 after:shadow-thumb after:transition-all after:duration-200 peer-checked:after:translate-x-[18px]"></div>
                        </div>
                      </label>
                    );
                  })}
+                 </div>
               </div>
             </div>
 
-            <div className="p-4 border-t border-slate-100 bg-slate-50 shrink-0">
-               <button 
-                 onClick={() => setSelectedDay(null)}
-                 className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors shadow-lg shadow-indigo-600/20"
-               >
+            <div className="px-4 pb-4 pt-1 shrink-0">
+               <button onClick={() => setSelectedDay(null)} className="btn-primary w-full py-2.5 text-[15px]">
                  {t('cal.done')}
                </button>
             </div>
