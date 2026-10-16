@@ -11,7 +11,7 @@ npm run build     # 輸出到 dist/
 npm run lint      # ESLint 9 flat config
 npm run preview
 ```
-目前沒有測試框架。`npm run lint` 原本就有 3 個 `no-unused-vars` 錯誤（Sidebar.jsx、StaffModal.jsx）和 1 個 exhaustive-deps 警告（App.jsx），不是新改動造成的。
+目前沒有測試框架。`npm run lint` 應該保持 0 錯誤。
 
 ## 技術棧
 React 19 + Vite 8、Tailwind CSS 3（PostCSS）、date-fns 4、lucide-react（icons）、uuid，以及 `clsx` + `tailwind-merge`（包成 `src/lib/utils.js` 的 `cn()`）。語言是 JavaScript/JSX，不用 TypeScript。
@@ -24,10 +24,16 @@ React 19 + Vite 8、Tailwind CSS 3（PostCSS）、date-fns 4、lucide-react（ic
   - 排序：前天有值班（QOD）的人排到最後，其次按總班數公平分配，同分時隨機
   - 填人順序：`minSeniorR`（R2/R3）→ `minR`（任何 R*）→ `minPGY`（PGY*）→ 剩下的名額隨便補
   - 週末，或 override 設了 `isHoliday` 的日子，消耗的是 weekend 額度
+- **指定值班（pins）**：每位 staff 有 `fixedDays: string[]`（和 `offDays` 平行）。
+  - 排班時會先預扣這些班的額度，指定的人一定排進當天；演算法也會避開指定日的前一天，並把「指定日前兩天」視為 QOD 風險。
+  - 指定的優先權高於所有規則，衝突時只警告，由 `findPinConflicts()` 回傳（`offDay` / `consecutive` / `availability` / `quota`）。
+  - 可以在 day modal 的 📌 按鈕或 StaffModal 的「指定值班」模式設定。
+- **多方案**：`generateCandidates()` 會跑 50 次 `generateSchedule`，去重後依「缺人天數 → QOD → 總班數差 → 假日班差」排序，取前 10 組，在 `CandidateBar` 顯示（可以按 ← / → 切換）。
+  - 每位醫師的統計（平日 / 假日 / QOD）共用 `computeStaffStats()`（StaffAnalyticsView 也用它）。
+- **自動重算**：`App.jsx` 用 `useMemo` 計算 candidates，月份、staff、pins、規則一有變動就重算；「重新產生」按鈕靠 `regenToken` 觸發重跑。
 - **兩層 override**：
   - `dailyReqOverrides[date]` 改寫某天的人力需求（`{ total, minR, minSeniorR, minPGY, isHoliday }`），在排班時生效
-  - `manualOverrides[date]` 手動指定某天的人員，排班後才 merge 進結果；重新產生班表時會清空
-- **切換月份會自動重新排班**（App.jsx 的 `useEffect`，依賴 `currentMonthDate`）。
+  - `manualOverrides[date]` 手動調整某天的人員，排班後才 merge 進結果。它和目前選的方案綁在一起（`view.forCandidates`），切換方案或重算就會清空，要保留就改用 pin。
 - **職級字串**：`R1`/`R2`/`R3`/`PGY1`… 演算法用 `startsWith('R')` / `startsWith('PGY')` 判斷，新增職級時要注意這點。
 - **元件 `src/components/`**：
   - `Sidebar`：人員清單、全域需求、搜尋、產生/清除班表

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { X, CalendarMinus, CheckCheck } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isWeekend } from 'date-fns';
+import { X, CalendarMinus, CheckCheck, Pin } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../lib/i18n';
 
 export default function StaffModal({ staff, currentMonthDate, onClose, onSave, isNew }) {
   const { t } = useTranslation();
-  const [formData, setFormData] = useState(staff || {});
+  const [formData, setFormData] = useState(staff ? { fixedDays: [], ...staff } : {});
+  const [pickMode, setPickMode] = useState('off'); // 'off' | 'fixed'
   
   if (!staff) return null;
 
@@ -19,14 +20,16 @@ export default function StaffModal({ staff, currentMonthDate, onClose, onSave, i
     onClose();
   };
 
-  const toggleOffDay = (dateStr) => {
+  // A date can be either an off day or a pinned shift, never both
+  const toggleDay = (dateStr) => {
+    const [field, other] = pickMode === 'fixed' ? ['fixedDays', 'offDays'] : ['offDays', 'fixedDays'];
     setFormData(prev => {
-      const isOff = prev.offDays?.includes(dateStr);
-      if (isOff) {
-        return { ...prev, offDays: prev.offDays.filter(d => d !== dateStr) };
-      } else {
-        return { ...prev, offDays: [...(prev.offDays || []), dateStr] };
-      }
+      const current = prev[field] || [];
+      return {
+        ...prev,
+        [field]: current.includes(dateStr) ? current.filter(d => d !== dateStr) : [...current, dateStr],
+        [other]: (prev[other] || []).filter(d => d !== dateStr)
+      };
     });
   };
 
@@ -129,12 +132,36 @@ export default function StaffModal({ staff, currentMonthDate, onClose, onSave, i
                  <CalendarMinus className="w-4 h-4 text-rose-500" />
                  {t('staff.offDays')}
                </span>
-               <span className="text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded font-black border border-rose-100">
-                 {formData.offDays.length} {t('sidebar.off')}
+               <span className="flex gap-1.5">
+                 <span className="text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded font-black border border-rose-100">
+                   {formData.offDays.length} {t('sidebar.off')}
+                 </span>
+                 <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded font-black border border-indigo-100">
+                   {formData.fixedDays.length} {t('pin.pinned')}
+                 </span>
                </span>
              </h4>
+             <div className="bg-slate-100 p-1 rounded-lg flex border border-slate-200">
+               {[
+                 { mode: 'off', label: t('staff.modeOff'), icon: <CalendarMinus className="w-3.5 h-3.5" />, active: 'text-rose-600' },
+                 { mode: 'fixed', label: t('staff.modeFixed'), icon: <Pin className="w-3.5 h-3.5" />, active: 'text-indigo-600' },
+               ].map(({ mode, label, icon, active }) => (
+                 <button
+                   key={mode}
+                   type="button"
+                   onClick={() => setPickMode(mode)}
+                   className={cn(
+                     "flex-1 py-1.5 rounded-md text-xs font-bold flex items-center justify-center gap-1.5 transition-colors",
+                     pickMode === mode ? cn("bg-white shadow-sm", active) : "text-slate-500 hover:text-slate-700"
+                   )}
+                 >
+                   {icon}
+                   {label}
+                 </button>
+               ))}
+             </div>
              <p className="text-xs text-slate-500 font-medium pb-2 border-b border-slate-100">
-               {t('staff.clickToToggle')}
+               {pickMode === 'fixed' ? t('staff.clickToToggleFixed') : t('staff.clickToToggle')}
              </p>
              <div className="p-2 bg-slate-50 border border-slate-200 rounded-xl">
                 <div className="grid grid-cols-7 gap-1">
@@ -150,21 +177,27 @@ export default function StaffModal({ staff, currentMonthDate, onClose, onSave, i
                   {/* Days Matrix */}
                   {daysInMonth.map(day => {
                     const dateStr = format(day, 'yyyy-MM-dd');
-                    const isSelected = formData.offDays.includes(dateStr);
+                    const isOff = formData.offDays.includes(dateStr);
+                    const isFixed = formData.fixedDays.includes(dateStr);
 
                     return (
                       <button
                         key={dateStr}
-                        onClick={() => toggleOffDay(dateStr)}
+                        onClick={() => toggleDay(dateStr)}
                         className={cn(
                           "aspect-square rounded-lg flex flex-col items-center justify-center relative border transition-all text-xs font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)]",
-                          isSelected 
-                            ? "bg-rose-500 text-white border-rose-600 shadow-rose-500/30 scale-105 z-10" 
-                            : "bg-white text-slate-600 border-slate-200 hover:border-rose-300 hover:bg-rose-50"
+                          isOff
+                            ? "bg-rose-500 text-white border-rose-600 shadow-rose-500/30 scale-105 z-10"
+                            : isFixed
+                              ? "bg-indigo-600 text-white border-indigo-700 shadow-indigo-600/30 scale-105 z-10"
+                              : pickMode === 'fixed'
+                                ? "bg-white text-slate-600 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50"
+                                : "bg-white text-slate-600 border-slate-200 hover:border-rose-300 hover:bg-rose-50"
                         )}
                       >
                          {format(day, 'd')}
-                         {isSelected && <CheckCheck className="w-2.5 h-2.5 text-rose-200 absolute bottom-0.5" />}
+                         {isOff && <CheckCheck className="w-2.5 h-2.5 text-rose-200 absolute bottom-0.5" />}
+                         {isFixed && <Pin className="w-2.5 h-2.5 text-indigo-200 absolute bottom-0.5" />}
                       </button>
                     )
                   })}

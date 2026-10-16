@@ -23,7 +23,7 @@ const dictionary = {
     'sidebar.we': 'WE',
     'sidebar.off': 'Off',
     'sidebar.addStaffBtn': 'Add New Staff',
-    'sidebar.generateBtn': 'Generate Schedule',
+    'sidebar.generateBtn': 'Regenerate Candidates',
     'sidebar.clearBtn': 'Clear Schedule',
 
     // RuleModal
@@ -91,7 +91,31 @@ const dictionary = {
     'staff.cancel': 'Cancel',
     'staff.addStaff': 'Add Staff',
     'staff.saveChanges': 'Save Changes',
-    'staff.clickToToggle': 'Click to toggle off-days for the current view month.'
+    'staff.clickToToggle': 'Click to toggle off-days for the current view month.',
+    'staff.fixedDays': 'Pinned Shifts',
+    'staff.modeOff': 'Off Days',
+    'staff.modeFixed': 'Pinned Shifts',
+    'staff.clickToToggleFixed': 'Click to pin shifts. Pinned shifts are always kept; the algorithm fills the rest.',
+
+    // CandidateBar
+    'cand.plan': 'Plan',
+    'cand.shortage': 'Short days',
+    'cand.qod': 'QOD',
+    'cand.spread': 'Shift gap',
+    'cand.weSpread': 'Weekend gap',
+    'cand.regenerate': 'Regenerate',
+    'cand.hint': 'Use ← → to switch plans',
+    'cand.empty': 'Schedule cleared. Press Regenerate to create plans.',
+
+    // Pins
+    'pin.pin': 'Pin this shift',
+    'pin.unpin': 'Unpin',
+    'pin.pinned': 'Pinned',
+    'pin.conflicts': 'Pin Conflicts',
+    'pin.offDay': 'pinned on an off day',
+    'pin.consecutive': 'pinned on consecutive days',
+    'pin.availability': 'pinned outside availability period',
+    'pin.quota': 'pinned shifts exceed quota'
   },
   zh: {
     // App Header
@@ -114,7 +138,7 @@ const dictionary = {
     'sidebar.we': '假',
     'sidebar.off': 'Off',
     'sidebar.addStaffBtn': '+ 新增醫師 (Staff)',
-    'sidebar.generateBtn': '一鍵產生排班 (Generate)',
+    'sidebar.generateBtn': '重新產生方案 (Regenerate)',
     'sidebar.clearBtn': '清除全部班表 (Clear)',
 
     // RuleModal
@@ -182,7 +206,31 @@ const dictionary = {
     'staff.cancel': '取消',
     'staff.addStaff': '新增人員',
     'staff.saveChanges': '儲存變更',
-    'staff.clickToToggle': '點擊表格來快速勾選他想排開的 Off-day。'
+    'staff.clickToToggle': '點擊表格來快速勾選他想排開的 Off-day。',
+    'staff.fixedDays': '指定值班日',
+    'staff.modeOff': '請假日',
+    'staff.modeFixed': '指定值班',
+    'staff.clickToToggleFixed': '點擊表格指定他一定要值的班，演算法會保留這些班再排其他人。',
+
+    // CandidateBar
+    'cand.plan': '方案',
+    'cand.shortage': '缺人天',
+    'cand.qod': 'QOD',
+    'cand.spread': '班數差',
+    'cand.weSpread': '假日差',
+    'cand.regenerate': '重新產生',
+    'cand.hint': '按 ← → 切換方案',
+    'cand.empty': '班表已清除，按「重新產生」建立方案。',
+
+    // Pins
+    'pin.pin': '指定這天值班',
+    'pin.unpin': '取消指定',
+    'pin.pinned': '指定',
+    'pin.conflicts': '指定值班衝突',
+    'pin.offDay': '指定在請假日',
+    'pin.consecutive': '指定連續兩天值班',
+    'pin.availability': '指定在可值班區間之外',
+    'pin.quota': '指定的班數超過額度'
   }
 };
 

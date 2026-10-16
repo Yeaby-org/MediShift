@@ -9,7 +9,7 @@ import {
   isSameMonth, 
   isToday 
 } from 'date-fns';
-import { AlertCircle, CheckCircle2, X, Settings2, Trash2, Edit2 } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, X, Settings2, Trash2, Edit2, Pin } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../lib/i18n';
 
@@ -20,6 +20,8 @@ export default function CalendarView({
   staffList,
   searchedStaff,
   overrideDayStaff,
+  togglePin,
+  pinConflicts,
   dailyRequirements,
   dailyReqOverrides,
   updateDayReqOverride,
@@ -52,8 +54,17 @@ export default function CalendarView({
   // default to either the override, or the global baseline
   const activeReq = selectedDay ? (dailyReqOverrides[selectedDay] || dailyRequirements) : dailyRequirements;
 
+  const isPinned = (staff, dateStr) => Boolean(staff.fixedDays?.includes(dateStr));
+  const selectedDayConflicts = selectedDay ? (pinConflicts[selectedDay] || []) : [];
+
   const toggleStaffInDay = (staffId) => {
     if (!selectedDay) return;
+    // Turning off a pinned staff means unpinning them
+    const staff = staffList.find(s => s.id === staffId);
+    if (staff && isPinned(staff, selectedDay)) {
+      togglePin(selectedDay, staffId);
+      return;
+    }
     let newStaffIds = [...currentDayStaffIds];
     if (newStaffIds.includes(staffId)) {
       newStaffIds = newStaffIds.filter(id => id !== staffId);
@@ -145,6 +156,11 @@ export default function CalendarView({
                         {dailyReqOverrides[formattedDate]?.isHoliday && (
                            <div className="text-[9px] font-black uppercase text-rose-600 bg-rose-100 px-1 rounded shadow-sm border border-rose-200" title="National Holiday">Hol</div>
                         )}
+                        {pinConflicts[formattedDate] && (
+                           <div className="text-amber-600 bg-amber-50 border border-amber-200 rounded px-0.5 shadow-sm" title={t('pin.conflicts')}>
+                             <AlertTriangle className="w-3 h-3" />
+                           </div>
+                        )}
                         {hasOverride && (
                            <div className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-sm" title="Has custom requirements override" />
                         )}
@@ -163,15 +179,16 @@ export default function CalendarView({
                         <div 
                           key={s.id} 
                           className={cn(
-                            "px-2 py-1 rounded-md text-[11px] font-bold transition-all truncate border",
-                            isSearchedPerson 
-                              ? "bg-indigo-600 text-white border-indigo-700 shadow-md shadow-indigo-600/20" 
-                              : isR 
-                                ? "bg-indigo-50 text-indigo-700 border-indigo-100" 
+                            "px-2 py-1 rounded-md text-[11px] font-bold transition-all truncate border flex items-center gap-1",
+                            isSearchedPerson
+                              ? "bg-indigo-600 text-white border-indigo-700 shadow-md shadow-indigo-600/20"
+                              : isR
+                                ? "bg-indigo-50 text-indigo-700 border-indigo-100"
                                 : "bg-emerald-50 text-emerald-700 border-emerald-100"
                           )}
                         >
-                          {s.name}
+                          {isPinned(s, formattedDate) && <Pin className="w-2.5 h-2.5 shrink-0 fill-current" />}
+                          <span className="truncate">{s.name}</span>
                         </div>
                       )
                     })}
@@ -300,6 +317,23 @@ export default function CalendarView({
                  )}
               </div>
 
+              {/* Pin Conflicts */}
+              {selectedDayConflicts.length > 0 && (
+                <div className="mx-4 mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <h4 className="text-xs font-black text-amber-700 uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5" />
+                    {t('pin.conflicts')}
+                  </h4>
+                  <ul className="space-y-0.5">
+                    {selectedDayConflicts.map(({ staffId, type }) => (
+                      <li key={staffId + type} className="text-xs font-semibold text-amber-800">
+                        {staffList.find(s => s.id === staffId)?.name}: {t(`pin.${type}`)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
               {/* Staff Manual Assignment Section */}
               <div className="p-4 space-y-2">
                  <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-2 flex justify-between">
@@ -321,8 +355,19 @@ export default function CalendarView({
                            isR ? "bg-indigo-50 text-indigo-600 border-indigo-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"
                          )}>{staff.level}</span>
                        </div>
-                       <div className="relative flex items-center h-5">
-                         <input 
+                       <div className="relative flex items-center gap-2 h-5">
+                         <button
+                           type="button"
+                           onClick={(e) => { e.preventDefault(); togglePin(selectedDay, staff.id); }}
+                           title={isPinned(staff, selectedDay) ? t('pin.unpin') : t('pin.pin')}
+                           className={cn(
+                             "p-1 rounded-md transition-colors",
+                             isPinned(staff, selectedDay) ? "text-indigo-600 bg-indigo-100" : "text-slate-300 hover:text-indigo-500 hover:bg-indigo-50"
+                           )}
+                         >
+                           <Pin className={cn("w-3.5 h-3.5", isPinned(staff, selectedDay) && "fill-current")} />
+                         </button>
+                         <input
                            type="checkbox" 
                            checked={isWorking}
                            onChange={() => toggleStaffInDay(staff.id)}

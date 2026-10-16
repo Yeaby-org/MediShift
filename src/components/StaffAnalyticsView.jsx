@@ -1,48 +1,14 @@
 import React, { useMemo } from 'react';
-import { differenceInDays, format, isWeekend, parseISO } from 'date-fns';
+import { format, isWeekend, parseISO } from 'date-fns';
 import { Users, AlertTriangle, CalendarCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { computeStaffStats } from '../lib/scheduler';
 import { useTranslation } from '../lib/i18n';
 
 export default function StaffAnalyticsView({ schedule, staffList, currentMonthDate, dailyReqOverrides }) {
   const { t } = useTranslation();
   const analytics = useMemo(() => {
-    // Initialize stats
-    const stats = staffList.map(staff => ({
-      ...staff,
-      dates: [],
-      wdCount: 0,
-      weCount: 0,
-      qodCount: 0,
-    }));
-
-    // Populate dates
-    Object.entries(schedule).forEach(([dateStr, staffIds]) => {
-      const dateObj = parseISO(dateStr);
-      const isWE = isWeekend(dateObj) || Boolean(dailyReqOverrides[dateStr]?.isHoliday);
-
-      staffIds.forEach(id => {
-        const p = stats.find(s => s.id === id);
-        if (p) {
-          p.dates.push(dateStr);
-          if (isWE) p.weCount++;
-          else p.wdCount++;
-        }
-      });
-    });
-
-    // Detect QODs (Work -> Rest -> Work)
-    stats.forEach(p => {
-      p.dates.sort(); // String sort works for YYYY-MM-DD
-      let qods = 0;
-      for (let i = 1; i < p.dates.length; i++) {
-        const diff = differenceInDays(parseISO(p.dates[i]), parseISO(p.dates[i - 1]));
-        if (diff === 2) {
-          qods++;
-        }
-      }
-      p.qodCount = qods;
-    });
+    const stats = computeStaffStats(schedule, staffList, dailyReqOverrides);
 
     return stats.sort((a, b) => {
       // Sort by Seniors first then names or total shifts

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, UserPlus, X, Calendar as CalendarIcon, Users, Edit2, ShieldAlert, ShieldCheck } from 'lucide-react';
+import React from 'react';
+import { Search, UserPlus, X, Calendar as CalendarIcon, Users, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '../lib/utils';
 import { useTranslation } from '../lib/i18n';
@@ -16,7 +16,6 @@ export default function Sidebar({
   setSearchQuery,
   searchedStaff,
   schedule,
-  currentMonthDate,
   onGenerate,
   onClear
 }) {
@@ -120,6 +119,7 @@ export default function Sidebar({
                     <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{t('sidebar.wd')}: {staff.maxWeekdays}</span>
                     <span className="bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{t('sidebar.we')}: {staff.maxWeekends}</span>
                     {staff.offDays.length > 0 && <span className="text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">{staff.offDays.length} {t('sidebar.off')}</span>}
+                    {staff.fixedDays?.length > 0 && <span className="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">{staff.fixedDays.length} {t('pin.pinned')}</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
-import { generateSchedule } from './lib/scheduler';
+import { generateCandidates, findPinConflicts } from './lib/scheduler';
+import CandidateBar from './components/CandidateBar';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import { cn } from './lib/utils';
@@ -9,11 +10,11 @@ import { Stethoscope, Globe } from 'lucide-react';
 import { useTranslation } from './lib/i18n';
 
 const INITIAL_STAFF = [
-  { id: uuidv4(), name: 'Dr. Smith', level: 'R3', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [] },
-  { id: uuidv4(), name: 'Dr. John', level: 'R2', maxWeekdays: 4, maxWeekends: 3, availability: 'Full Month', offDays: [] },
-  { id: uuidv4(), name: 'Dr. House', level: 'R1', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [] },
-  { id: uuidv4(), name: 'Dr. Jackie', level: 'PGY3', maxWeekdays: 4, maxWeekends: 3, availability: 'Full Month', offDays: [] },
-  { id: uuidv4(), name: 'Dr. Strange', level: 'PGY2', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [] }
+  { id: uuidv4(), name: 'Dr. Smith', level: 'R3', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [], fixedDays: [] },
+  { id: uuidv4(), name: 'Dr. John', level: 'R2', maxWeekdays: 4, maxWeekends: 3, availability: 'Full Month', offDays: [], fixedDays: [] },
+  { id: uuidv4(), name: 'Dr. House', level: 'R1', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [], fixedDays: [] },
+  { id: uuidv4(), name: 'Dr. Jackie', level: 'PGY3', maxWeekdays: 4, maxWeekends: 3, availability: 'Full Month', offDays: [], fixedDays: [] },
+  { id: uuidv4(), name: 'Dr. Strange', level: 'PGY2', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [], fixedDays: [] }
 ];
 
 function App() {
@@ -21,50 +22,60 @@ function App() {
   const [dailyRequirements, setDailyRequirements] = useState({ total: 2, minR: 0, minSeniorR: 0, minPGY: 0 });
   const [searchQuery, setSearchQuery] = useState('');
   const [currentMonthDate, setCurrentMonthDate] = useState(startOfMonth(addMonths(new Date(), 1)));
-  const [manualOverrides, setManualOverrides] = useState({}); // { 'YYYY-MM-DD': ['staffId1', 'staffId2'] }
   const [dailyReqOverrides, setDailyReqOverrides] = useState({}); // { 'YYYY-MM-DD': { total, minR, minPGY } }
-  
-  const [baseSchedule, setBaseSchedule] = useState({});
-  const [shortages, setShortages] = useState([]);
-  
+
+  const [regenToken, setRegenToken] = useState(0);
+  const [cleared, setCleared] = useState(false);
+
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('calendar'); // 'calendar' | 'analytics'
   const { t, lang, setLang } = useTranslation();
-  
-  // Explicitly generate schedule
-  const handleGenerateSchedule = () => {
-    const { schedule: newSchedule, shortages: newShortages } = generateSchedule(
-      currentMonthDate.getFullYear(),
-      currentMonthDate.getMonth(),
-      staffList,
-      dailyRequirements,
-      dailyReqOverrides
-    );
-    setBaseSchedule(newSchedule);
-    setShortages(newShortages);
-    setManualOverrides({}); // Reset overrides on new generation
+
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+
+  // Auto-generate candidate schedules whenever staff, pins, or rules change
+  const candidates = useMemo(() => {
+    if (cleared) return [];
+    return generateCandidates(year, month, staffList, dailyRequirements, dailyReqOverrides, { runs: 50, keep: 10 });
+    // regenToken is intentionally a dependency: bumping it re-runs the random generator
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [year, month, staffList, dailyRequirements, dailyReqOverrides, cleared, regenToken]);
+
+  const pinConflicts = useMemo(
+    () => findPinConflicts(year, month, staffList, dailyReqOverrides),
+    [year, month, staffList, dailyReqOverrides]
+  );
+
+  // Selected plan + manual overrides belong to one candidate set; they reset when candidates regenerate
+  const [view, setView] = useState({ forCandidates: null, idx: 0, manualOverrides: {} }); // manualOverrides: { 'YYYY-MM-DD': ['staffId1', 'staffId2'] }
+  const currentView = view.forCandidates === candidates ? view : { idx: 0, manualOverrides: {} };
+  const selected = candidates[currentView.idx];
+  const manualOverrides = currentView.manualOverrides;
+  const shortages = selected ? selected.shortages : [];
+
+  const selectCandidate = useCallback((idx) => {
+    setView({ forCandidates: candidates, idx, manualOverrides: {} });
+  }, [candidates]);
+
+  const handleRegenerate = () => {
+    setCleared(false);
+    setRegenToken(n => n + 1);
   };
 
   const handleClearSchedule = () => {
-    setBaseSchedule({});
-    setShortages([]);
-    setManualOverrides({});
+    setCleared(true);
   };
 
-  // Generate initial schedule on mount
-  React.useEffect(() => {
-    handleGenerateSchedule();
-  }, [currentMonthDate]); // auto gen when month changes so map doesn't break
-  
   // Merge overrides
   const schedule = useMemo(() => {
-    const merged = { ...baseSchedule };
+    const merged = { ...(selected ? selected.schedule : {}) };
     Object.keys(manualOverrides).forEach(date => {
       merged[date] = manualOverrides[date];
     });
     return merged;
-  }, [baseSchedule, manualOverrides]);
+  }, [selected, manualOverrides]);
 
   // Derived filtered personal schedule
   const searchedStaff = useMemo(() => {
@@ -88,9 +99,23 @@ function App() {
   };
 
   const overrideDayStaff = (dateStr, staffIds) => {
-    setManualOverrides(prev => ({
-      ...prev,
-      [dateStr]: staffIds
+    setView({
+      forCandidates: candidates,
+      idx: currentView.idx,
+      manualOverrides: { ...manualOverrides, [dateStr]: staffIds }
+    });
+  };
+
+  // Pin / unpin a staff on a date (pinned staff is always kept when regenerating)
+  const togglePin = (dateStr, staffId) => {
+    setStaffList(prev => prev.map(staff => {
+      if (staff.id !== staffId) return staff;
+      const fixedDays = staff.fixedDays || [];
+      return {
+        ...staff,
+        fixedDays: fixedDays.includes(dateStr) ? fixedDays.filter(d => d !== dateStr) : [...fixedDays, dateStr],
+        offDays: staff.offDays.filter(d => d !== dateStr)
+      };
     }));
   };
 
@@ -133,8 +158,7 @@ function App() {
             setSearchQuery={setSearchQuery}
             searchedStaff={searchedStaff}
             schedule={schedule}
-            currentMonthDate={currentMonthDate}
-            onGenerate={handleGenerateSchedule}
+            onGenerate={handleRegenerate}
             onClear={handleClearSchedule}
           />
         </div>
@@ -190,6 +214,14 @@ function App() {
           </div>
         </header>
 
+        <CandidateBar
+          candidates={candidates}
+          selectedIdx={currentView.idx}
+          onSelect={selectCandidate}
+          onRegenerate={handleRegenerate}
+          keyboardEnabled={!editingStaffId && !isRuleModalOpen}
+        />
+
         <main className="flex-1 overflow-hidden relative">
           {activeTab === 'calendar' ? (
              <div className="absolute inset-0 p-6 overflow-y-auto">
@@ -200,6 +232,8 @@ function App() {
                  staffList={staffList}
                  searchedStaff={searchedStaff}
                  overrideDayStaff={overrideDayStaff}
+                 togglePin={togglePin}
+                 pinConflicts={pinConflicts}
                  dailyRequirements={dailyRequirements}
                  dailyReqOverrides={dailyReqOverrides}
                  updateDayReqOverride={updateDayReqOverride}
@@ -222,7 +256,7 @@ function App() {
       {editingStaffId && (
         <StaffModal 
           staff={editingStaffId === 'new' 
-            ? { name: '', level: 'PGY1', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [] } 
+            ? { name: '', level: 'PGY1', maxWeekdays: 5, maxWeekends: 2, availability: 'Full Month', offDays: [], fixedDays: [] } 
             : staffList.find(s => s.id === editingStaffId)}
           currentMonthDate={currentMonthDate}
           onClose={() => setEditingStaffId(null)}
