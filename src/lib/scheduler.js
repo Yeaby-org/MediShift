@@ -2,7 +2,19 @@ import { getDaysInMonth, format, isWeekend, addDays, differenceInDays, parseISO 
 
 const DATE_FMT = 'yyyy-MM-dd';
 
-const isWeekendOrHoliday = (date, dateString, dailyReqOverrides) =>
+// Seeded PRNG (mulberry32) so the same seed always reproduces the same candidates
+function createRandom(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const isWeekendOrHoliday =(date, dateString, dailyReqOverrides) =>
   isWeekend(date) || Boolean(dailyReqOverrides[dateString]?.isHoliday);
 
 /**
@@ -29,9 +41,10 @@ function collectPins(year, month, staffList) {
  * @param {Array} staffList - Array of { id, name, level, maxWeekdays, maxWeekends, offDays, fixedDays }
  * @param {Object} globalReq - { total, minR, minPGY }
  * @param {Object} dailyReqOverrides - { 'YYYY-MM-DD': { total, minR, minPGY } }
+ * @param {Function} random - () => [0, 1), defaults to Math.random
  * @returns { schedule, shortages }
  */
-export function generateSchedule(year, month, staffList, globalReq, dailyReqOverrides = {}) {
+export function generateSchedule(year, month, staffList, globalReq, dailyReqOverrides = {}, random = Math.random) {
   const daysInMonth = getDaysInMonth(new Date(year, month));
   const schedule = {};
   const shortages = [];
@@ -103,7 +116,7 @@ export function generateSchedule(year, month, staffList, globalReq, dailyReqOver
       }
 
       if (shiftCountsTotal[a.id] === shiftCountsTotal[b.id]) {
-        return Math.random() - 0.5;
+        return random() - 0.5;
       }
       return shiftCountsTotal[a.id] - shiftCountsTotal[b.id];
     });
@@ -256,12 +269,13 @@ const spread = (values) => (values.length ? Math.max(...values) - Math.min(...va
  * 排序優先序：缺人天數 → QOD 次數 → 總班數差距 → 假日班差距
  * @returns {Array} [{ schedule, shortages, score: { shortageDays, qodTotal, shiftSpread, weekendSpread } }]
  */
-export function generateCandidates(year, month, staffList, globalReq, dailyReqOverrides = {}, { runs = 50, keep = 10 } = {}) {
+export function generateCandidates(year, month, staffList, globalReq, dailyReqOverrides = {}, { runs = 50, keep = 10, seed } = {}) {
   const seen = new Set();
   const candidates = [];
+  const random = seed === undefined ? Math.random : createRandom(seed);
 
   for (let i = 0; i < runs; i++) {
-    const result = generateSchedule(year, month, staffList, globalReq, dailyReqOverrides);
+    const result = generateSchedule(year, month, staffList, globalReq, dailyReqOverrides, random);
     const key = JSON.stringify(Object.values(result.schedule).map(ids => [...ids].sort()));
     if (seen.has(key)) continue;
     seen.add(key);

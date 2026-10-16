@@ -15,6 +15,8 @@ export default function Sidebar({
   searchQuery,
   setSearchQuery,
   searchedStaff,
+  focusedStaffId,
+  onFocusStaff,
   schedule,
   onGenerate,
   onClear
@@ -53,7 +55,16 @@ export default function Sidebar({
           <div className="mt-4 p-4 rounded-xl bg-indigo-50 border border-indigo-100 shadow-sm">
             <h3 className="text-sm font-bold text-indigo-900 flex items-center gap-2">
               <CalendarIcon className="w-4 h-4 text-indigo-500" />
-              {searchedStaff.name}{t('sidebar.shifts')}
+              <span className="flex-1">{searchedStaff.name}{t('sidebar.shifts')} ({staffShifts.length})</span>
+              {focusedStaffId && (
+                <button
+                  onClick={() => onFocusStaff(focusedStaffId)}
+                  className="p-1 rounded-md text-indigo-400 hover:text-indigo-700 hover:bg-indigo-100 transition-colors"
+                  title={t('sidebar.showAll')}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {staffShifts.length > 0 ? staffShifts.map(date => (
@@ -103,7 +114,17 @@ export default function Sidebar({
         </h3>
         <ul className="space-y-3">
           {staffList.map(staff => (
-            <li key={staff.id} className="bg-white border border-slate-200 rounded-xl p-3.5 flex flex-col gap-2 group shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
+            <li
+              key={staff.id}
+              onClick={() => onFocusStaff(staff.id)}
+              title={t('sidebar.focusHint')}
+              className={cn(
+                "border rounded-xl p-3.5 flex flex-col gap-2 group shadow-sm hover:shadow-md transition-all cursor-pointer",
+                focusedStaffId === staff.id
+                  ? "bg-indigo-50 border-indigo-400 ring-2 ring-indigo-500/20"
+                  : "bg-white border-slate-200 hover:border-slate-300"
+              )}
+            >
               <div className="flex items-start justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -122,7 +143,7 @@ export default function Sidebar({
                     {staff.fixedDays?.length > 0 && <span className="text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">{staff.fixedDays.length} {t('pin.pinned')}</span>}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                   <button 
                     onClick={() => onEditStaff(staff.id)}
                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100"

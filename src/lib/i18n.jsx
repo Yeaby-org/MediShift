@@ -24,6 +24,8 @@ const dictionary = {
     'sidebar.off': 'Off',
     'sidebar.addStaffBtn': 'Add New Staff',
     'sidebar.generateBtn': 'Regenerate Candidates',
+    'sidebar.focusHint': 'Click to show only this staff\'s shifts',
+    'sidebar.showAll': 'Show everyone',
     'sidebar.clearBtn': 'Clear Schedule',
 
     // RuleModal
@@ -139,6 +141,8 @@ const dictionary = {
     'sidebar.off': 'Off',
     'sidebar.addStaffBtn': '+ 新增醫師 (Staff)',
     'sidebar.generateBtn': '重新產生方案 (Regenerate)',
+    'sidebar.focusHint': '點擊只顯示這位醫師的班表',
+    'sidebar.showAll': '顯示全部人員',
     'sidebar.clearBtn': '清除全部班表 (Clear)',
 
     // RuleModal
@@ -237,7 +241,7 @@ const dictionary = {
 export const LanguageContext = createContext();
 
 export function LanguageProvider({ children }) {
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState('zh');
 
   const t = (key) => {
     return dictionary[lang][key] || key;

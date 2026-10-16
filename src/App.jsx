@@ -24,8 +24,9 @@ function App() {
   const [currentMonthDate, setCurrentMonthDate] = useState(startOfMonth(addMonths(new Date(), 1)));
   const [dailyReqOverrides, setDailyReqOverrides] = useState({}); // { 'YYYY-MM-DD': { total, minR, minPGY } }
 
-  const [regenToken, setRegenToken] = useState(0);
-  const [cleared, setCleared] = useState(false);
+  // Only months listed here get scheduled; the seed makes a month's candidates reproducible
+  const [monthSeeds, setMonthSeeds] = useState(() => ({ [format(currentMonthDate, 'yyyy-MM')]: 1 })); // { 'yyyy-MM': seed }
+  const [focusedStaffId, setFocusedStaffId] = useState(null);
 
   const [editingStaffId, setEditingStaffId] = useState(null);
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false);
@@ -34,14 +35,14 @@ function App() {
 
   const year = currentMonthDate.getFullYear();
   const month = currentMonthDate.getMonth();
+  const monthKey = format(currentMonthDate, 'yyyy-MM');
+  const seed = monthSeeds[monthKey];
 
-  // Auto-generate candidate schedules whenever staff, pins, or rules change
+  // Auto-generate candidate schedules for this month whenever staff, pins, or rules change
   const candidates = useMemo(() => {
-    if (cleared) return [];
-    return generateCandidates(year, month, staffList, dailyRequirements, dailyReqOverrides, { runs: 50, keep: 10 });
-    // regenToken is intentionally a dependency: bumping it re-runs the random generator
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year, month, staffList, dailyRequirements, dailyReqOverrides, cleared, regenToken]);
+    if (seed === undefined) return [];
+    return generateCandidates(year, month, staffList, dailyRequirements, dailyReqOverrides, { runs: 50, keep: 10, seed });
+  }, [year, month, staffList, dailyRequirements, dailyReqOverrides, seed]);
 
   const pinConflicts = useMemo(
     () => findPinConflicts(year, month, staffList, dailyReqOverrides),
@@ -59,13 +60,17 @@ function App() {
     setView({ forCandidates: candidates, idx, manualOverrides: {} });
   }, [candidates]);
 
+  // Regenerate / clear only affect the month being viewed
   const handleRegenerate = () => {
-    setCleared(false);
-    setRegenToken(n => n + 1);
+    setMonthSeeds(prev => ({ ...prev, [monthKey]: Date.now() }));
   };
 
   const handleClearSchedule = () => {
-    setCleared(true);
+    setMonthSeeds(prev => {
+      const next = { ...prev };
+      delete next[monthKey];
+      return next;
+    });
   };
 
   // Merge overrides
@@ -78,10 +83,12 @@ function App() {
   }, [selected, manualOverrides]);
 
   // Derived filtered personal schedule
+  // Clicking a staff in the directory focuses them; otherwise fall back to the search box
   const searchedStaff = useMemo(() => {
+    if (focusedStaffId) return staffList.find(s => s.id === focusedStaffId) || null;
     if (!searchQuery.trim()) return null;
     return staffList.find(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [searchQuery, staffList]);
+  }, [focusedStaffId, searchQuery, staffList]);
 
   const handleStaffSave = (staffData) => {
     if (editingStaffId === 'new') {
@@ -157,6 +164,8 @@ function App() {
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             searchedStaff={searchedStaff}
+            focusedStaffId={focusedStaffId}
+            onFocusStaff={(id) => setFocusedStaffId(prev => prev === id ? null : id)}
             schedule={schedule}
             onGenerate={handleRegenerate}
             onClear={handleClearSchedule}

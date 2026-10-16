@@ -30,7 +30,10 @@ React 19 + Vite 8、Tailwind CSS 3（PostCSS）、date-fns 4、lucide-react（ic
   - 可以在 day modal 的 📌 按鈕或 StaffModal 的「指定值班」模式設定。
 - **多方案**：`generateCandidates()` 會跑 50 次 `generateSchedule`，去重後依「缺人天數 → QOD → 總班數差 → 假日班差」排序，取前 10 組，在 `CandidateBar` 顯示（可以按 ← / → 切換）。
   - 每位醫師的統計（平日 / 假日 / QOD）共用 `computeStaffStats()`（StaffAnalyticsView 也用它）。
-- **自動重算**：`App.jsx` 用 `useMemo` 計算 candidates，月份、staff、pins、規則一有變動就重算；「重新產生」按鈕靠 `regenToken` 觸發重跑。
+- **自動重算**：`App.jsx` 用 `useMemo` 計算 candidates，staff、pins、規則一有變動就重算。
+  - 只有出現在 `monthSeeds`（`{ 'yyyy-MM': seed }`）裡的月份會排班；「重新產生」和「清除」只影響目前檢視的月份。
+  - 用 seed 做的 PRNG（`createRandom`）讓同一個月切走再切回來，方案保持不變。
+- **只看某位醫師**：點 Staff Directory 的卡片會設定 `focusedStaffId`（優先於搜尋框），月曆就只顯示那個人的班。
 - **兩層 override**：
   - `dailyReqOverrides[date]` 改寫某天的人力需求（`{ total, minR, minSeniorR, minPGY, isHoliday }`），在排班時生效
   - `manualOverrides[date]` 手動調整某天的人員，排班後才 merge 進結果。它和目前選的方案綁在一起（`view.forCandidates`），切換方案或重算就會清空，要保留就改用 pin。

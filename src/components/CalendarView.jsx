@@ -108,7 +108,11 @@ export default function CalendarView({
             const hasOverride = !!dailyReqOverrides[formattedDate];
             
             const dayStaffIds = schedule[formattedDate] || [];
-            const dayStaff = dayStaffIds.map(id => staffList.find(s => s.id === id)).filter(Boolean);
+            // When a staff is focused/searched, only show that person's shifts
+            const dayStaff = dayStaffIds
+              .filter(id => !searchedStaff || id === searchedStaff.id)
+              .map(id => staffList.find(s => s.id === id))
+              .filter(Boolean);
             const hasShortage = shortages.includes(formattedDate);
             
             const isSearchedDay = searchedStaff && dayStaffIds.includes(searchedStaff.id);
