@@ -79,6 +79,14 @@ export default function StaffAnalyticsView({ schedule, staffList, currentMonthDa
                 )}
               </div>
 
+              {/* Fri–Sun breaks */}
+              <div className="text-[13px] text-apple-ink-2 -mt-3">
+                {t('stat.weekendBreaks')}{' '}
+                <span className={cn("font-semibold tabular-nums", staff.weekendBreaks < (staff.minWeekendBreaks || 0) ? "text-[#c93400]" : "text-apple-ink")}>
+                  {staff.weekendBreaks}{staff.minWeekendBreaks > 0 && ` / ${staff.minWeekendBreaks}`}
+                </span>
+              </div>
+
               {/* Working Dates */}
               <div>
                  <h4 className="text-xs text-apple-ink-3 mb-2">{t('stat.assignedDates')}</h4>

@@ -21,7 +21,8 @@ export default function RuleModal({
     minR: dailyRequirements.minR,
     minSeniorR: dailyRequirements.minSeniorR || 0,
     minPGY: dailyRequirements.minPGY,
-    isHoliday: false
+    isHoliday: false,
+    noDuty: false
   });
 
   const monthStart = startOfMonth(currentMonthDate);
@@ -161,7 +162,7 @@ export default function RuleModal({
                   ))}
                 </div>
 
-                <label className="flex items-center gap-2.5 cursor-pointer bg-white px-3 py-2.5 rounded-[12px] mb-4">
+                <label className="flex items-center gap-2.5 cursor-pointer bg-white px-3 py-2.5 rounded-[12px] mb-2">
                   <input
                     type="checkbox"
                     checked={ruleForm.isHoliday}
@@ -169,6 +170,16 @@ export default function RuleModal({
                     className="w-4 h-4 rounded accent-apple-blue"
                   />
                   <span className="text-[13px] text-apple-ink">{t('ruleModal.treatHoliday')}</span>
+                </label>
+
+                <label className="flex items-center gap-2.5 cursor-pointer bg-white px-3 py-2.5 rounded-[12px] mb-4">
+                  <input
+                    type="checkbox"
+                    checked={ruleForm.noDuty}
+                    onChange={e => setRuleForm(prev => ({...prev, noDuty: e.target.checked}))}
+                    className="w-4 h-4 rounded accent-apple-blue"
+                  />
+                  <span className="text-[13px] text-apple-ink">{t('ruleModal.noDuty')}</span>
                 </label>
 
                 <button
@@ -196,6 +207,7 @@ export default function RuleModal({
                           <p className="text-[15px] text-apple-ink flex items-center gap-2 tabular-nums">
                              {format(parseISO(dateStr), lang === 'zh' ? 'M/d (EEE)' : 'MMM d (EEE)')}
                              {reqs.isHoliday && <span className="text-[11px] font-medium text-apple-red">{t('cal.holiday')}</span>}
+                             {reqs.noDuty && <span className="text-[11px] font-medium text-apple-ink-3">{t('cal.noDuty')}</span>}
                           </p>
                           <p className="text-xs text-apple-ink-3 mt-0.5 tabular-nums">
                             {t('cal.total')} {reqs.total} · {t('cal.snrR')} {reqs.minSeniorR || 0} · {t('cal.anyR')} {reqs.minR} · {t('cal.pgy')} {reqs.minPGY}

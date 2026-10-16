@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { format, addMonths, subMonths, startOfMonth } from 'date-fns';
-import { generateCandidates, findPinConflicts } from './lib/scheduler';
+import { generateCandidates, findPinConflicts, diffSchedules, computeStaffStats } from './lib/scheduler';
 import CandidateBar from './components/CandidateBar';
+import PlanDiffSummary from './components/PlanDiffSummary';
 import Sidebar from './components/Sidebar';
 import CalendarView from './components/CalendarView';
 import { cn } from './lib/utils';
@@ -50,15 +51,25 @@ function App() {
   );
 
   // Selected plan + manual overrides belong to one candidate set; they reset when candidates regenerate
-  const [view, setView] = useState({ forCandidates: null, idx: 0, manualOverrides: {} }); // manualOverrides: { 'YYYY-MM-DD': ['staffId1', 'staffId2'] }
-  const currentView = view.forCandidates === candidates ? view : { idx: 0, manualOverrides: {} };
+  // idx: plan being viewed; baseIdx: plan it is compared against
+  const [view, setView] = useState({ forCandidates: null, idx: 0, baseIdx: 0, manualOverrides: {} }); // manualOverrides: { 'YYYY-MM-DD': ['staffId1', 'staffId2'] }
+  const currentView = view.forCandidates === candidates ? view : { idx: 0, baseIdx: 0, manualOverrides: {} };
   const selected = candidates[currentView.idx];
   const manualOverrides = currentView.manualOverrides;
   const shortages = selected ? selected.shortages : [];
 
   const selectCandidate = useCallback((idx) => {
-    setView({ forCandidates: candidates, idx, manualOverrides: {} });
+    setView(prev => ({
+      forCandidates: candidates,
+      idx,
+      baseIdx: prev.forCandidates === candidates ? prev.baseIdx : 0,
+      manualOverrides: {}
+    }));
   }, [candidates]);
+
+  const setBaseCandidate = (baseIdx) => {
+    setView({ ...currentView, forCandidates: candidates, baseIdx });
+  };
 
   // Regenerate / clear only affect the month being viewed
   const handleRegenerate = () => {
@@ -81,6 +92,35 @@ function App() {
     });
     return merged;
   }, [selected, manualOverrides]);
+
+  // Highlight what changed compared to the base plan (預設方案 1，可在卡片上按「比較」更換)
+  const [showDiff, setShowDiff] = useState(true);
+  const baseIdx = currentView.baseIdx;
+  const isComparing = candidates.length > 0 && currentView.idx !== baseIdx;
+  const diffCounts = useMemo(
+    () => candidates.map(c => Object.keys(diffSchedules(candidates[baseIdx].schedule, c.schedule)).length),
+    [candidates, baseIdx]
+  );
+  const scheduleDiff = useMemo(
+    () => (showDiff && isComparing ? diffSchedules(candidates[baseIdx].schedule, schedule) : {}),
+    [showDiff, isComparing, candidates, baseIdx, schedule]
+  );
+  // Per-staff count changes (viewed - base), only staff whose numbers moved
+  const staffDelta = useMemo(() => {
+    if (!isComparing) return [];
+    const before = computeStaffStats(candidates[baseIdx].schedule, staffList, dailyReqOverrides);
+    const after = computeStaffStats(schedule, staffList, dailyReqOverrides);
+    return after
+      .map((s, i) => ({
+        id: s.id,
+        name: s.name,
+        wd: s.wdCount - before[i].wdCount,
+        we: s.weCount - before[i].weCount,
+        qod: s.qodCount - before[i].qodCount,
+        breaks: s.minWeekendBreaks > 0 ? s.weekendBreaks - before[i].weekendBreaks : 0,
+      }))
+      .filter(d => d.wd || d.we || d.qod || d.breaks);
+  }, [isComparing, candidates, baseIdx, schedule, staffList, dailyReqOverrides]);
 
   // Derived filtered personal schedule
   // Clicking a staff in the directory focuses them; otherwise fall back to the search box
@@ -107,8 +147,8 @@ function App() {
 
   const overrideDayStaff = (dateStr, staffIds) => {
     setView({
+      ...currentView,
       forCandidates: candidates,
-      idx: currentView.idx,
       manualOverrides: { ...manualOverrides, [dateStr]: staffIds }
     });
   };
@@ -224,11 +264,28 @@ function App() {
 
         <CandidateBar
           candidates={candidates}
+          showBreaks={staffList.some(s => s.minWeekendBreaks > 0)}
+          diffCounts={diffCounts}
+          showDiff={showDiff}
+          onToggleDiff={() => setShowDiff(v => !v)}
+          baseIdx={baseIdx}
+          onSetBase={setBaseCandidate}
           selectedIdx={currentView.idx}
           onSelect={selectCandidate}
           onRegenerate={handleRegenerate}
           keyboardEnabled={!editingStaffId && !isRuleModalOpen}
         />
+
+        {isComparing && (
+          <PlanDiffSummary
+            viewIdx={currentView.idx}
+            baseIdx={baseIdx}
+            changedDays={Object.keys(diffSchedules(candidates[baseIdx].schedule, schedule)).length}
+            staffDelta={staffDelta}
+            focusedStaffId={focusedStaffId}
+            onFocusStaff={(id) => setFocusedStaffId(prev => prev === id ? null : id)}
+          />
+        )}
 
         <main className="flex-1 overflow-hidden relative">
           {activeTab === 'calendar' ? (
@@ -236,6 +293,7 @@ function App() {
                <CalendarView 
                  currentMonthDate={currentMonthDate}
                  schedule={schedule}
+                 scheduleDiff={scheduleDiff}
                  shortages={shortages}
                  staffList={staffList}
                  searchedStaff={searchedStaff}

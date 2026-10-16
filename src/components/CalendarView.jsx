@@ -18,6 +18,7 @@ import { useTranslation } from '../lib/i18n';
 export default function CalendarView({
   currentMonthDate,
   schedule,
+  scheduleDiff = {},
   shortages,
   staffList,
   searchedStaff,
@@ -86,12 +87,14 @@ export default function CalendarView({
       minSeniorR: parseInt(fd.get('minSeniorR')) || 0,
       minR: parseInt(fd.get('minR')) || 0,
       minPGY: parseInt(fd.get('minPGY')) || 0,
-      isHoliday: fd.get('isHoliday') === 'on'
+      isHoliday: fd.get('isHoliday') === 'on',
+      noDuty: fd.get('noDuty') === 'on'
     });
     setReqEditMode(false);
   };
 
-  const isShort = currentDayStaffIds.length < activeReq.total;
+  const requiredTotal = activeReq.noDuty ? 0 : activeReq.total;
+  const isShort = currentDayStaffIds.length < requiredTotal;
 
   const reqFields = [
     { name: 'total', label: t('cal.total'), value: activeReq.total },
@@ -120,6 +123,7 @@ export default function CalendarView({
             const isCurrentDay = isToday(day);
             const hasOverride = !!dailyReqOverrides[formattedDate];
             const isHoliday = Boolean(dailyReqOverrides[formattedDate]?.isHoliday);
+            const isNoDuty = Boolean(dailyReqOverrides[formattedDate]?.noDuty);
             const isOffDay = isWeekend(day) || isHoliday;
 
             const dayStaffIds = schedule[formattedDate] || [];
@@ -129,6 +133,13 @@ export default function CalendarView({
               .map(id => staffList.find(s => s.id === id))
               .filter(Boolean);
             const hasShortage = shortages.includes(formattedDate);
+            // Diff vs 方案 1: who was swapped in / out on this day
+            const dayDiff = scheduleDiff[formattedDate];
+            const addedIds = dayDiff?.added || [];
+            const removedStaff = (dayDiff?.removed || [])
+              .filter(id => !searchedStaff || id === searchedStaff.id)
+              .map(id => staffList.find(s => s.id === id))
+              .filter(Boolean);
 
             const isSearchedDay = searchedStaff && dayStaffIds.includes(searchedStaff.id);
             const searchActive = !!searchedStaff;
@@ -145,8 +156,9 @@ export default function CalendarView({
                 className={cn(
                   "min-h-[112px] p-2 flex flex-col transition-all duration-200 relative overflow-hidden",
                   !isCurrentMonth ? "bg-[#fafafc] cursor-default" : "bg-white hover:bg-[#fafafc] cursor-pointer",
+                  isCurrentMonth && isNoDuty && "bg-apple-bg",
                   searchActive && isSearchedDay && "bg-apple-blue-soft/60 hover:bg-apple-blue-soft",
-                  searchActive && !isSearchedDay && isCurrentMonth && "opacity-40"
+                  searchActive && !isSearchedDay && removedStaff.length === 0 && isCurrentMonth && "opacity-40"
                 )}
               >
                 <div className="flex justify-between items-start mb-1.5">
@@ -163,6 +175,7 @@ export default function CalendarView({
                   {isCurrentMonth && (
                     <div className="flex items-center gap-1 pt-1.5 pr-0.5">
                       {isHoliday && <span className="text-[10px] font-medium text-apple-red">{t('cal.holiday')}</span>}
+                      {isNoDuty && <span className="text-[10px] font-medium text-apple-ink-3">{t('cal.noDuty')}</span>}
                       {hasOverride && <span className="w-1.5 h-1.5 rounded-full bg-apple-ink-3" title={t('cal.overridden')} />}
                       {pinConflicts[formattedDate] && <span className="w-1.5 h-1.5 rounded-full bg-apple-orange" title={t('pin.conflicts')} />}
                       {hasShortage && <span className="w-1.5 h-1.5 rounded-full bg-apple-red" title={t('cal.shortage')} />}
@@ -175,12 +188,17 @@ export default function CalendarView({
                   <div className="flex flex-col gap-1 mt-auto flex-1 h-0 overflow-y-auto no-scrollbar pointer-events-none">
                     {dayStaff.map(s => {
                       const isSearchedPerson = searchedStaff?.id === s.id;
+                      const isAdded = addedIds.includes(s.id);
                       return (
                         <div
                           key={s.id}
+                          title={isAdded ? t('cand.added') : undefined}
                           className={cn(
                             "px-2 py-[3px] rounded-md text-[12px] font-medium transition-all truncate flex items-center gap-1.5",
-                            isSearchedPerson ? "bg-apple-blue text-white" : "bg-apple-bg text-apple-ink"
+                            isSearchedPerson ? "bg-apple-blue text-white"
+                              : isAdded ? "bg-apple-orange/15 text-[#c93400]"
+                              : "bg-apple-bg text-apple-ink",
+                            isSearchedPerson && isAdded && "ring-2 ring-apple-orange"
                           )}
                         >
                           {isPinned(s, formattedDate)
@@ -190,6 +208,15 @@ export default function CalendarView({
                         </div>
                       )
                     })}
+                    {removedStaff.map(s => (
+                      <div
+                        key={`removed-${s.id}`}
+                        title={t('cand.removed')}
+                        className="px-2 py-[3px] rounded-md text-[12px] font-medium truncate text-apple-ink-3 line-through opacity-60"
+                      >
+                        {s.name}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -221,7 +248,7 @@ export default function CalendarView({
                  <div className="px-4 py-3">
                    <div className="text-xs text-apple-ink-3">{t('cal.assigned')}</div>
                    <div className="text-2xl font-semibold tabular-nums text-apple-ink">
-                     {currentDayStaffIds.length}<span className="text-base text-apple-ink-3 font-medium"> / {activeReq.total}</span>
+                     {currentDayStaffIds.length}<span className="text-base text-apple-ink-3 font-medium"> / {requiredTotal}</span>
                    </div>
                  </div>
                  <div className="px-4 py-3">
@@ -276,6 +303,10 @@ export default function CalendarView({
                          <input name="isHoliday" type="checkbox" defaultChecked={activeReq.isHoliday} className="w-4 h-4 rounded accent-apple-blue" />
                          <span className="text-[13px] text-apple-ink">{t('cal.markHoliday')}</span>
                        </label>
+                       <label className="flex items-center gap-2 cursor-pointer">
+                         <input name="noDuty" type="checkbox" defaultChecked={activeReq.noDuty} className="w-4 h-4 rounded accent-apple-blue" />
+                         <span className="text-[13px] text-apple-ink">{t('cal.markNoDuty')}</span>
+                       </label>
                        <div className="flex gap-2 pt-1">
                         <button type="button" onClick={() => setReqEditMode(false)} className="btn-secondary flex-1 py-1.5">{t('cal.cancel')}</button>
                         <button type="submit" className="btn-primary flex-1 py-1.5">{t('cal.saveRules')}</button>
@@ -292,6 +323,9 @@ export default function CalendarView({
                          ))}
                          {activeReq.isHoliday && (
                            <div className="self-center text-xs font-medium text-apple-red">{t('cal.holiday')}</div>
+                         )}
+                         {activeReq.noDuty && (
+                           <div className="self-center text-xs font-medium text-apple-ink-3">{t('cal.noDuty')}</div>
                          )}
                        </div>
                       <ChevronRight className="w-4 h-4 text-apple-line group-hover:text-apple-ink-3 transition-colors" />

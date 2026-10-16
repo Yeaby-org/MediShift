@@ -136,6 +136,7 @@ export default function Sidebar({
                   <div className="text-xs text-apple-ink-3 mt-0.5 flex gap-2 tabular-nums">
                     <span>{t('sidebar.wd')} {staff.maxWeekdays}</span>
                     <span>{t('sidebar.we')} {staff.maxWeekends}</span>
+                    {staff.minWeekendBreaks > 0 && <span>{t('sidebar.breaks')} {staff.minWeekendBreaks}</span>}
                     {staff.offDays.length > 0 && <span className="text-apple-red">{staff.offDays.length} {t('sidebar.off')}</span>}
                     {staff.fixedDays?.length > 0 && <span className="text-apple-blue">{staff.fixedDays.length} {t('pin.pinned')}</span>}
                   </div>

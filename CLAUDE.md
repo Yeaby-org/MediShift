@@ -21,21 +21,23 @@ React 19 + Vite 8、Tailwind CSS 3（PostCSS）、date-fns 4、lucide-react（ic
 - **排班演算法 `src/lib/scheduler.js`**：`generateSchedule(year, month, staffList, globalReq, dailyReqOverrides)` 回傳 `{ schedule, shortages }`。
   - `schedule` 的格式為 `{ 'yyyy-MM-dd': [staffId, ...] }`
   - 規則依序處理：offDays、不連續值班（前一天有班就排除）、availability（`Full Month` / `First Half` 1–15 日 / `Second Half`）、平日/假日上限（`maxWeekdays` / `maxWeekends`）
-  - 排序：前天有值班（QOD）的人排到最後，其次按總班數公平分配，同分時隨機
+  - 五六日連假（個別醫師的 `staff.minWeekendBreaks`，在 StaffModal 設定）：一次連假 = 週四值班（過夜班，週五下班 OFF）+ 五六日都沒班。每次執行隨機選週末，該週四把他排最前面，週三和五六日把他排最後（軟限制）
+  - 排序：連假偏好 → 前天有值班（QOD）的人排後面 → 按總班數公平分配 → 同分時隨機
   - 填人順序：`minSeniorR`（R2/R3）→ `minR`（任何 R*）→ `minPGY`（PGY*）→ 剩下的名額隨便補
   - 週末，或 override 設了 `isHoliday` 的日子，消耗的是 weekend 額度
 - **指定值班（pins）**：每位 staff 有 `fixedDays: string[]`（和 `offDays` 平行）。
   - 排班時會先預扣這些班的額度，指定的人一定排進當天；演算法也會避開指定日的前一天，並把「指定日前兩天」視為 QOD 風險。
   - 指定的優先權高於所有規則，衝突時只警告，由 `findPinConflicts()` 回傳（`offDay` / `consecutive` / `availability` / `quota`）。
   - 可以在 day modal 的 📌 按鈕或 StaffModal 的「指定值班」模式設定。
-- **多方案**：`generateCandidates()` 會跑 50 次 `generateSchedule`，去重後依「缺人天數 → QOD → 總班數差 → 假日班差」排序，取前 10 組，在 `CandidateBar` 顯示（可以按 ← / → 切換）。
+- **多方案**：`generateCandidates()` 會跑 50 次 `generateSchedule`，去重後依「缺人天數 → 連假不足 → QOD → 總班數差 → 假日班差」排序，取前 10 組，在 `CandidateBar` 顯示（可以按 ← / → 切換）。
+  - 方案比較：卡片上按「比較」可把任一方案設成基準（`view.baseIdx`，預設方案 1，重算時重設）。正在看的方案和基準不同時，`diffSchedules()` 會在月曆標出差異：換上來的人是橘色 chip、被換掉的人是刪除線 chip（`showDiff` 可關閉）；卡片顯示相對基準的異動天數；`PlanDiffSummary` 列出每位醫師的平 / 假 / QOD / 連假增減，點名字會切到只看那位醫師。
   - 每位醫師的統計（平日 / 假日 / QOD）共用 `computeStaffStats()`（StaffAnalyticsView 也用它）。
 - **自動重算**：`App.jsx` 用 `useMemo` 計算 candidates，staff、pins、規則一有變動就重算。
   - 只有出現在 `monthSeeds`（`{ 'yyyy-MM': seed }`）裡的月份會排班；「重新產生」和「清除」只影響目前檢視的月份。
   - 用 seed 做的 PRNG（`createRandom`）讓同一個月切走再切回來，方案保持不變。
 - **只看某位醫師**：點 Staff Directory 的卡片會設定 `focusedStaffId`（優先於搜尋框），月曆就只顯示那個人的班。
 - **兩層 override**：
-  - `dailyReqOverrides[date]` 改寫某天的人力需求（`{ total, minR, minSeniorR, minPGY, isHoliday }`），在排班時生效
+  - `dailyReqOverrides[date]` 改寫某天的人力需求（`{ total, minR, minSeniorR, minPGY, isHoliday, noDuty }`），在排班時生效；`noDuty` 會把當天需求歸零，只保留指定的人並提出衝突警告
   - `manualOverrides[date]` 手動調整某天的人員，排班後才 merge 進結果。它和目前選的方案綁在一起（`view.forCandidates`），切換方案或重算就會清空，要保留就改用 pin。
 - **職級字串**：`R1`/`R2`/`R3`/`PGY1`… 演算法用 `startsWith('R')` / `startsWith('PGY')` 判斷，新增職級時要注意這點。
 - **元件 `src/components/`**：

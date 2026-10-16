@@ -18,6 +18,21 @@ const isWeekendOrHoliday =(date, dateString, dailyReqOverrides) =>
   isWeekend(date) || Boolean(dailyReqOverrides[dateString]?.isHoliday);
 
 /**
+ * 找出完整的「週四值班 → 五六日 OFF」區段 (四天都要在本月)
+ * 值班是過夜班，週四值完班週五才會 OFF，接著六日才是三天連假
+ * @param {Array} dates - 本月日期字串
+ * @returns {Array} [{ thu, off: ['fri', 'sat', 'sun'] }, ...]
+ */
+function getWeekendBlocks(dates) {
+  const dateSet = new Set(dates);
+  const shift = (d, n) => format(addDays(parseISO(d), n), DATE_FMT);
+  return dates
+    .filter(d => parseISO(d).getDay() === 4)
+    .map(thu => ({ thu, off: [shift(thu, 1), shift(thu, 2), shift(thu, 3)] }))
+    .filter(block => block.off.every(d => dateSet.has(d)));
+}
+
+/**
  * 收集本月的指定值班 (fixedDays)
  * @returns {Object} { 'YYYY-MM-DD': [staffId, ...] }
  */
@@ -38,9 +53,9 @@ function collectPins(year, month, staffList) {
  * 產生醫院班表
  * @param {number} year
  * @param {number} month (0-11)
- * @param {Array} staffList - Array of { id, name, level, maxWeekdays, maxWeekends, offDays, fixedDays }
+ * @param {Array} staffList - Array of { id, name, level, maxWeekdays, maxWeekends, offDays, fixedDays, minWeekendBreaks }
  * @param {Object} globalReq - { total, minR, minPGY }
- * @param {Object} dailyReqOverrides - { 'YYYY-MM-DD': { total, minR, minPGY } }
+ * @param {Object} dailyReqOverrides - { 'YYYY-MM-DD': { total, minR, minPGY, isHoliday, noDuty } }
  * @param {Function} random - () => [0, 1), defaults to Math.random
  * @returns { schedule, shortages }
  */
@@ -71,6 +86,33 @@ export function generateSchedule(year, month, staffList, globalReq, dailyReqOver
     });
   });
 
+  // 0.5 五六日連假: 替有設定的醫師隨機選幾個週末，週四優先排他、週三和五六日避開他
+  // (優先選週四已指定值班、或五六日本來就請假的週末)
+  const breakWantDuty = {};
+  const breakAvoid = {};
+  const wantsBreaks = staffList.filter(staff => staff.minWeekendBreaks > 0);
+  if (wantsBreaks.length > 0) {
+    const monthDates = Array.from({ length: daysInMonth }, (_, i) => format(new Date(year, month, i + 1), DATE_FMT));
+    const blocks = getWeekendBlocks(monthDates);
+    wantsBreaks.forEach(staff => {
+      const pinned = new Set(staff.fixedDays || []);
+      const off = new Set(staff.offDays || []);
+      const picks = blocks
+        .filter(block => !off.has(block.thu) && !block.off.some(d => pinned.has(d)))
+        .map(block => ({
+          block,
+          thuPinned: pinned.has(block.thu) ? 1 : 0,
+          overlap: block.off.filter(d => off.has(d)).length,
+          r: random(),
+        }))
+        .sort((a, b) => b.thuPinned - a.thuPinned || b.overlap - a.overlap || a.r - b.r)
+        .slice(0, staff.minWeekendBreaks);
+      breakWantDuty[staff.id] = new Set(picks.map(p => p.block.thu));
+      // 週三值班的話週四會被「不連續」規則擋掉，所以週三也避開
+      breakAvoid[staff.id] = new Set(picks.flatMap(p => [format(addDays(parseISO(p.block.thu), -1), DATE_FMT), ...p.block.off]));
+    });
+  }
+
   let previousDayWorkers = new Set();
   let previousDayWorkers2DaysAgo = new Set();
 
@@ -79,8 +121,11 @@ export function generateSchedule(year, month, staffList, globalReq, dailyReqOver
     const dateString = format(date, DATE_FMT);
     const isWE = isWeekendOrHoliday(date, dateString, dailyReqOverrides);
 
-    // Merge requirements for this day
-    const req = dailyReqOverrides[dateString] || globalReq;
+    // Merge requirements for this day (不值班日：需求歸零，只留指定的人)
+    const override = dailyReqOverrides[dateString];
+    const req = override?.noDuty
+      ? { total: 0, minR: 0, minSeniorR: 0, minPGY: 0 }
+      : override || globalReq;
 
     const pinnedToday = pinsByDate[dateString] || [];
     const pinnedTomorrow = new Set(pinsByDate[format(addDays(date, 1), DATE_FMT)] || []);
@@ -104,10 +149,16 @@ export function generateSchedule(year, month, staffList, globalReq, dailyReqOver
       return true;
     });
 
-    // 2. Sort available staff by QOD penalty, then total shifts fairness
-    // Penalty: If they worked N-2 (or are pinned on N+2), push them to the very bottom
+    // 2. Sort available staff by reserved weekend break, QOD penalty, then total shifts fairness
+    // Reserved breaks go last (寧可 QOD 也先保住連假); QOD risk = worked N-2 or pinned on N+2
     const hasQodRisk = (id) => previousDayWorkers2DaysAgo.has(id) || pinnedIn2Days.has(id);
+    // -1: 連假前的週四想排他, +1: 連假要避開他, 0: 其他
+    const breakRank = (id) => (breakWantDuty[id]?.has(dateString) ? -1 : breakAvoid[id]?.has(dateString) ? 1 : 0);
     availableStaff.sort((a, b) => {
+      if (breakRank(a.id) !== breakRank(b.id)) {
+         return breakRank(a.id) - breakRank(b.id);
+      }
+
       const aRisk = hasQodRisk(a.id);
       const bRisk = hasQodRisk(b.id);
 
@@ -190,7 +241,7 @@ export function generateSchedule(year, month, staffList, globalReq, dailyReqOver
 
 /**
  * 找出指定值班與規則衝突的地方 (指定優先，只做警告)
- * @returns {Object} { 'YYYY-MM-DD': [{ staffId, type: 'offDay' | 'consecutive' | 'availability' | 'quota' }] }
+ * @returns {Object} { 'YYYY-MM-DD': [{ staffId, type: 'offDay' | 'noDuty' | 'consecutive' | 'availability' | 'quota' }] }
  */
 export function findPinConflicts(year, month, staffList, dailyReqOverrides = {}) {
   const pinsByDate = collectPins(year, month, staffList);
@@ -210,6 +261,7 @@ export function findPinConflicts(year, month, staffList, dailyReqOverrides = {})
       const day = date.getDate();
 
       if (staff.offDays?.includes(dateStr)) add(dateStr, staff.id, 'offDay');
+      if (dailyReqOverrides[dateStr]?.noDuty) add(dateStr, staff.id, 'noDuty');
       if (pinned.includes(format(addDays(date, -1), DATE_FMT))) add(dateStr, staff.id, 'consecutive');
       if ((staff.availability === 'First Half' && day > 15) || (staff.availability === 'Second Half' && day <= 15)) {
         add(dateStr, staff.id, 'availability');
@@ -227,8 +279,8 @@ export function findPinConflicts(year, month, staffList, dailyReqOverrides = {})
 }
 
 /**
- * 計算每位醫師的值班統計 (平日 / 假日 / QOD)
- * @returns {Array} staffList 順序的 [{ ...staff, dates, wdCount, weCount, qodCount }]
+ * 計算每位醫師的值班統計 (平日 / 假日 / QOD / 五六日連假)
+ * @returns {Array} staffList 順序的 [{ ...staff, dates, wdCount, weCount, qodCount, weekendBreaks }]
  */
 export function computeStaffStats(schedule, staffList, dailyReqOverrides = {}) {
   const stats = staffList.map(staff => ({
@@ -237,6 +289,7 @@ export function computeStaffStats(schedule, staffList, dailyReqOverrides = {}) {
     wdCount: 0,
     weCount: 0,
     qodCount: 0,
+    weekendBreaks: 0,
   }));
   const byId = Object.fromEntries(stats.map(s => [s.id, s]));
 
@@ -251,23 +304,41 @@ export function computeStaffStats(schedule, staffList, dailyReqOverrides = {}) {
     });
   });
 
-  // Detect QODs (Work -> Rest -> Work)
+  // Detect QODs (Work -> Rest -> Work) and full Fri–Sun breaks
+  const blocks = getWeekendBlocks(Object.keys(schedule).sort());
   stats.forEach(p => {
     p.dates.sort(); // String sort works for YYYY-MM-DD
     for (let i = 1; i < p.dates.length; i++) {
       if (differenceInDays(parseISO(p.dates[i]), parseISO(p.dates[i - 1])) === 2) p.qodCount++;
     }
+    p.weekendBreaks = blocks.filter(block => p.dates.includes(block.thu) && !block.off.some(d => p.dates.includes(d))).length;
   });
 
   return stats;
+}
+
+/**
+ * 比較兩份班表，找出每天換上 / 換下的人
+ * @returns {Object} { 'YYYY-MM-DD': { added: [staffId], removed: [staffId] } } (只含有差異的日期)
+ */
+export function diffSchedules(base, target) {
+  const diff = {};
+  new Set([...Object.keys(base), ...Object.keys(target)]).forEach(date => {
+    const before = base[date] || [];
+    const after = target[date] || [];
+    const added = after.filter(id => !before.includes(id));
+    const removed = before.filter(id => !after.includes(id));
+    if (added.length || removed.length) diff[date] = { added, removed };
+  });
+  return diff;
 }
 
 const spread = (values) => (values.length ? Math.max(...values) - Math.min(...values) : 0);
 
 /**
  * 一次跑很多組排班，去重後依品質排序
- * 排序優先序：缺人天數 → QOD 次數 → 總班數差距 → 假日班差距
- * @returns {Array} [{ schedule, shortages, score: { shortageDays, qodTotal, shiftSpread, weekendSpread } }]
+ * 排序優先序：缺人天數 → 連假不足 → QOD 次數 → 總班數差距 → 假日班差距
+ * @returns {Array} [{ schedule, shortages, score: { shortageDays, breakShortfall, qodTotal, shiftSpread, weekendSpread } }]
  */
 export function generateCandidates(year, month, staffList, globalReq, dailyReqOverrides = {}, { runs = 50, keep = 10, seed } = {}) {
   const seen = new Set();
@@ -285,6 +356,7 @@ export function generateCandidates(year, month, staffList, globalReq, dailyReqOv
       ...result,
       score: {
         shortageDays: result.shortages.length,
+        breakShortfall: stats.reduce((sum, s) => sum + Math.max(0, (s.minWeekendBreaks || 0) - s.weekendBreaks), 0),
         qodTotal: stats.reduce((sum, s) => sum + s.qodCount, 0),
         shiftSpread: spread(stats.map(s => s.wdCount + s.weCount)),
         weekendSpread: spread(stats.map(s => s.weCount)),
@@ -292,7 +364,7 @@ export function generateCandidates(year, month, staffList, globalReq, dailyReqOv
     });
   }
 
-  const order = ['shortageDays', 'qodTotal', 'shiftSpread', 'weekendSpread'];
+  const order = ['shortageDays', 'breakShortfall', 'qodTotal', 'shiftSpread', 'weekendSpread'];
   candidates.sort((a, b) => {
     for (const k of order) {
       if (a.score[k] !== b.score[k]) return a.score[k] - b.score[k];

@@ -106,19 +106,21 @@ export default function StaffModal({ staff, currentMonthDate, onClose, onSave, i
                 {[
                   { key: 'maxWeekdays', label: t('staff.maxWd') },
                   { key: 'maxWeekends', label: t('staff.maxWe') },
+                  { key: 'minWeekendBreaks', label: t('staff.weekendBreaks') },
                 ].map(q => (
                   <label key={q.key} className="flex items-center justify-between bg-apple-bg rounded-[10px] pl-3 pr-1 py-1">
                      <span className="text-[13px] text-apple-ink">{q.label}</span>
                      <input
                        type="number"
                        min="0"
-                       value={formData[q.key]}
+                       value={formData[q.key] || 0}
                        onChange={e => setFormData({ ...formData, [q.key]: parseInt(e.target.value) || 0 })}
                        className="w-14 bg-white rounded-lg px-2 py-1 text-center font-semibold tabular-nums focus:outline-none focus:ring-4 focus:ring-apple-blue/15"
                      />
                   </label>
                 ))}
              </div>
+             <p className="text-xs text-apple-ink-3">{t('staff.weekendBreaksHint')}</p>
            </div>
 
            {/* Off Days / Pinned Shifts */}
